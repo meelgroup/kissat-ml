@@ -18,6 +18,8 @@ COMPILER="$CC $CFLAGS"
 VERSION="`cat ../VERSION 2>/dev/null`"
 [ "$VERSION" = "" ] && die "could not get 'VERSION'"
 cat <<EOF
+#ifndef BUILD_H_
+
 #define VERSION "$VERSION"
 #define COMPILER "$COMPILER"
 EOF
@@ -31,7 +33,7 @@ else
 fi
 #END-CUT-OUT-ID
 cat <<EOF
-#define ID "$ID"
+#define SHAID "$ID"
 EOF
 LC_TIME="en_US"
 export LC_TIME
@@ -44,4 +46,5 @@ EOF
 DIR="`pwd`"
 cat <<EOF
 #define DIR "$DIR"
+#endif
 EOF

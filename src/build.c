@@ -14,7 +14,7 @@ kissat_signature (void)
 const char *
 kissat_id (void)
 {
-  return ID;
+  return SHAID;
 }
 
 const char *
@@ -62,8 +62,8 @@ kissat_build (const char *prefix)
     connected_to_terminal = false;
 
   PREFIX (MAGENTA);
-  if (ID)
-    printf ("Version %s %s", VERSION, ID);
+  if (SHAID)
+    printf ("Version %s %s", VERSION, SHAID);
   else
     printf ("Version %s", VERSION);
   NL ();
