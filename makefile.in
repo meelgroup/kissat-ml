@@ -46,11 +46,9 @@ indent:
 	indent ../*/*.[ch]
 
 kissat: main.o $(APPOBJ) libkissat.a makefile
-	$(LD) -o $@ main.o $(APPOBJ) $(LIBS) -lm -lxgboost
-
+	$(LD) -o $@ main.o $(APPOBJ) $(LIBS) -lxgboost -lrabit -ldmlc -lstdc++ -lpthread  -lm -lrt
 tissat: test.o $(TSTOBJ) libkissat.a makefile
-	$(LD) -o $@ test.o $(TSTOBJ) $(LIBS) -lm -lxgboost
-
+	$(LD) -o $@ test.o $(TSTOBJ) $(LIBS) -lxgboost -lrabit -ldmlc -lstdc++ -lpthread  -lm -lrt
 kitten: kitten.c random.h stack.h makefile
 	$(CC) $(CFLAGS) -DSTAND_ALONE_KITTEN -o $@ ../src/kitten.c
 
