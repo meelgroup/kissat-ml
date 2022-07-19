@@ -329,6 +329,8 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
     {
       if (src->garbage)
 	{
+//           printf("Deleting ID (sparse) %d\n", src->cl_id);
+//           clause_print_stats(solver, src);
 	  next = kissat_delete_clause (solver, src);
 	  flushed_garbage_clauses++;
 	  if (last_irredundant == src)
@@ -340,6 +342,8 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 	    }
 	  continue;
 	}
+//       printf("Not deleting (sparse) clause %d, sz: %d\n", src->cl_id, src->size);
+//       clause_print_stats(solver, src);
 
       assert (src->size > 1);
       LOGCLS (src, "SRC");
@@ -347,8 +351,7 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 #if !defined(NDEBUG) || defined(CHECKING_OR_PROVING)
       const unsigned old_size = src->size;
 #endif
-      assert (SIZE_OF_CLAUSE_HEADER == sizeof (unsigned));
-      *(unsigned *) dst = *(unsigned *) src;
+      memmove(dst, src, SIZE_OF_CLAUSE_HEADER);
 
       unsigned *q = dst->lits;
 
@@ -360,12 +363,14 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 
       bool satisfied = false;
 
-      for (all_literals_in_clause (lit, src))
+//       printf("WAAAIT Not deleting (sparse) clause %d, sz: %d\n", dst->cl_id, dst->size);
+      for (all_literals_in_clause_sz (lit, src, dst->size))
 	{
 #ifdef CHECKING_OR_PROVING
 	  if (checking_or_proving)
 	    PUSH_STACK (solver->removed, lit);
 #endif
+//           printf("Lit: %d \n", (1 + (lit >> 1)) * ((lit & 1) ? -1 : 1));
 	  if (satisfied)
 	    continue;
 
@@ -677,17 +682,20 @@ dense_sweep_garbage_clauses (kissat * solver)
     {
       if (src->garbage)
 	{
+//           printf("Deleting (dense) ID %d", src->cl_id);
 	  next = kissat_delete_clause (solver, src);
 	  flushed_garbage_clauses++;
 	  continue;
 	}
+//       printf("Not deleting (dense) clause %d\n", src->cl_id);
       assert (src->size > 1);
       LOGCLS (src, "SRC");
       next = kissat_next_clause (src);
-      assert (SIZE_OF_CLAUSE_HEADER == sizeof (unsigned));
-      *(unsigned *) dst = *(unsigned *) src;
-      dst->searched = src->searched;
-      dst->size = src->size;
+
+      memmove(dst, src, SIZE_OF_CLAUSE_HEADER);
+
+      //dst->searched = src->searched;
+      //dst->size = src->size;
       dst->shrunken = false;
       memmove (dst->lits, src->lits, src->size * sizeof (unsigned));
       LOGCLS (dst, "DST");

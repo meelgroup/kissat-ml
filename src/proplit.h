@@ -1,3 +1,5 @@
+#pragma once
+
 static inline void
 kissat_watch_large_delayed (kissat * solver,
 			    watches * all_watches, unsigneds * delayed)
@@ -248,6 +250,8 @@ PROPAGATE_LITERAL (kissat * solver,
 	  else
 	    {
 	      assert (replacement_value < 0);
+	      c->props_used++;
+	      c->last_touched = CONFLICTS;
 	      kissat_fast_assign_reference (solver, values,
 					    assigned, other, ref, c);
 	      ticks++;

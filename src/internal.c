@@ -42,6 +42,8 @@ kissat_init (void)
 #ifndef NDEBUG
   kissat_init_checker (solver);
 #endif
+  solver->cl_id = 0;
+  INIT_STACK(solver->extra_data);
   return solver;
 }
 
@@ -144,6 +146,7 @@ kissat_release (kissat * solver)
 #ifndef QUIET
   RELEASE_STACK (solver->profiles.stack);
 #endif
+  RELEASE_STACK(solver->extra_data);
 
 #ifndef NDEBUG
   kissat_release_checker (solver);

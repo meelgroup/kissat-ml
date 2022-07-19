@@ -232,6 +232,8 @@ struct kissat
 #ifndef NPROOFS
   proof *proof;
 #endif
+  int cl_id;
+  STACK (extdata) extra_data;
 };
 
 #define VARS (solver->vars)

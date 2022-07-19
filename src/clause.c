@@ -49,6 +49,21 @@ init_clause (kissat * solver, clause * res,
   res->vivify = false;
 
   res->used = 0;
+  res->cl_id = solver->cl_id++;
+  res->props_used = 0;
+  res->uip1_used = 0;
+  res->last_touched = CONFLICTS;
+  if (!redundant) res->extra_data_idx = -1;
+  else {
+    extdata d;
+    d.clause_born = CONFLICTS;
+    memset(d.discounted_props_made, 0, sizeof(d.discounted_props_made));
+    memset(d.discounted_uip1_used, 0, sizeof(d.discounted_uip1_used));
+    d.sum_props_made = 0;
+    d.sum_uip1_used = 0;
+    PUSH_STACK(solver->extra_data, d);
+    res->extra_data_idx = SIZE_STACK(solver->extra_data)-1;
+  }
 
   res->searched = 2;
   res->size = size;
@@ -216,4 +231,26 @@ kissat_delete_binary (kissat * solver, bool redundant, unsigned a, unsigned b)
   DELETE_BINARY_FROM_PROOF (a, b);
   dec_clause (solver, redundant);
   INC (clauses_deleted);
+}
+
+void clause_print_stats(kissat* solver, clause* c) {
+  printf("Clause STATS. cl_id: %d", c->cl_id);
+  if (c->redundant) {
+    extdata* d = &PEEK_STACK(solver->extra_data, c->extra_data_idx);
+    printf(" clause_born: %d", d->clause_born);
+  //   double discounted_props_made[3];
+  //   double discounted_uip1_used[3];
+
+    printf(" sum_props_made: %d", d->sum_props_made);
+    printf(" sum_uip1_used: %d", d->sum_uip1_used);
+
+    printf(" prop_ranking: %d", d->prop_ranking);
+    printf(" uip1_ranking: %d", d->uip1_ranking);
+    printf(" last_touched_ranking: %d", d->last_touched_ranking);
+
+    for(int i = 0; i < 2; i ++) {
+      printf(" pred_lev[%d]: %f", i, d->pred_lev[i]);
+    }
+  }
+  printf("\n");
 }
