@@ -56,10 +56,12 @@ init_clause (kissat * solver, clause * res,
   if (!redundant) res->extra_data_idx = -1;
   else {
     extdata d;
+    d.cl_id = res->cl_id;
+    d.garbage = false;
     d.clause_born = CONFLICTS;
-    memset(d.discounted_props_made, 0, sizeof(d.discounted_props_made));
+    memset(d.discounted_props_used, 0, sizeof(d.discounted_props_used));
     memset(d.discounted_uip1_used, 0, sizeof(d.discounted_uip1_used));
-    d.sum_props_made = 0;
+    d.sum_props_used = 0;
     d.sum_uip1_used = 0;
     PUSH_STACK(solver->extra_data, d);
     res->extra_data_idx = SIZE_STACK(solver->extra_data)-1;
@@ -233,24 +235,35 @@ kissat_delete_binary (kissat * solver, bool redundant, unsigned a, unsigned b)
   INC (clauses_deleted);
 }
 
-void clause_print_stats(kissat* solver, clause* c) {
-  printf("Clause STATS. cl_id: %d", c->cl_id);
-  if (c->redundant) {
-    extdata* d = &PEEK_STACK(solver->extra_data, c->extra_data_idx);
-    printf(" clause_born: %d", d->clause_born);
-  //   double discounted_props_made[3];
-  //   double discounted_uip1_used[3];
+void clause_print_extdata(extdata* d) {
+  printf(" cl_id (extdata): %d", d->cl_id);
+  printf(" garbage: %d", d->garbage);
 
-    printf(" sum_props_made: %d", d->sum_props_made);
+  printf(" clause_born: %d", d->clause_born);
+
+    for(int i = 0; i < 2; i ++) {
+      printf(" discounted_props_used[0]: %f", d->discounted_props_used[i]);
+      printf(" discounted_uip1_used[0]: %f", d->discounted_uip1_used[i]);
+
+    }
+
+    printf(" sum_props_used: %d", d->sum_props_used);
     printf(" sum_uip1_used: %d", d->sum_uip1_used);
 
-    printf(" prop_ranking: %d", d->prop_ranking);
-    printf(" uip1_ranking: %d", d->uip1_ranking);
-    printf(" last_touched_ranking: %d", d->last_touched_ranking);
+    printf(" prop_ranking: %f", d->sum_props_used_per_time_rank_rel);
+    printf(" uip1_ranking: %f", d->sum_uip1_used_per_time_rank_rel);
+    printf(" last_touched_ranking: %f", d->last_touched_rank_rel);
 
     for(int i = 0; i < 2; i ++) {
       printf(" pred_lev[%d]: %f", i, d->pred_lev[i]);
     }
+}
+
+void clause_print_stats(kissat* solver, clause* c) {
+  printf("Clause STATS. cl_id: %d", c->cl_id);
+  if (c->redundant) {
+    extdata* d = &EXTDATA(c);
+    clause_print_extdata(d);
   }
   printf("\n");
 }

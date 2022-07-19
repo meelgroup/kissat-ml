@@ -1050,6 +1050,7 @@ substitute_connected_clauses (sweeper * sweeper, unsigned lit, unsigned repr)
 		PUSH_STACK (*delayed, dst.raw);
 		const size_t bytes = kissat_actual_bytes_of_clause (c);
 		ADD (arena_garbage, bytes);
+                if (!c->garbage && c->redundant) EXTDATA(c).garbage = true;
 		c->garbage = true;
 		q--;
 		continue;

@@ -6,6 +6,7 @@
 #include "rank.h"
 #include "report.h"
 #include "trail.h"
+#include "stack.h"
 
 #include <inttypes.h>
 #include <math.h>
@@ -27,7 +28,7 @@ typedef struct reducible reducible;
 struct reducible
 {
   uint64_t rank;
-  unsigned ref;
+  unsigned ref; //BEGIN_STACK (solver->arena); + ref == pointer to clause
 };
 
 #define RANK_REDUCIBLE(RED) \
@@ -37,6 +38,56 @@ struct reducible
 typedef STACK (reducible) reducibles;
 // *INDENT-ON*
 
+
+int comp_sum_prop_per(const void* a, const void* b) {
+  extdata * a1 = (extdata*) a;
+  extdata * b1 = (extdata*) b;
+  return b1->sum_props_used_per_time > a1->sum_props_used_per_time;
+}
+
+int comp_sum_uip1_per(const void* a, const void* b) {
+  extdata * a1 = (extdata*) a;
+  extdata * b1 = (extdata*) b;
+  return b1->sum_uip1_used_per_time > a1->sum_uip1_used_per_time;
+}
+
+void dump_ml_data(kissat* solver) {
+  extdata* begin = BEGIN_STACK(solver->extra_data);
+  extdata* end = END_STACK(solver->extra_data);
+  extdata* i = begin;
+  extdata* j = begin;
+  while(i != end) {
+    if (!i->garbage) {
+      memmove(j, i, sizeof(extdata));
+      j++;
+    }
+    i++;
+  }
+  SET_END_OF_STACK(solver->extra_data, j);
+
+  end = END_STACK(solver->extra_data);
+  #define RANK_LAST_TOUCHED(RED) (RED).last_touched
+  RADIX_STACK (extdata, int, solver->extra_data, RANK_LAST_TOUCHED);
+  for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
+    PEEK_STACK(solver->extra_data, i).last_touched_rank_rel = (double)i/(double)size;
+  }
+
+  qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_sum_prop_per);
+  for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
+    PEEK_STACK(solver->extra_data, i).sum_props_used_per_time_rank_rel = (double)i/(double)size;
+  }
+
+  qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_sum_uip1_per);
+  for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
+    PEEK_STACK(solver->extra_data, i).sum_uip1_used_per_time_rank_rel = (double)i/(double)size;
+  }
+
+  for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
+    clause_print_extdata(r);
+  }
+}
+
+/// Takes reducibles from BEGIN_STACK (solver->arena) and puts them into (reducibles * reds).
 static bool
 collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
 {
@@ -46,8 +97,11 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
   clause *start = (clause *) (arena + start_ref);
   const clause *const end = (clause *) END_STACK (solver->arena);
   assert (start < end);
-  while (start != end && (!start->redundant || start->keep))
+  while (start != end && (!start->redundant || start->keep)) {
     start = kissat_next_clause (start);
+    if (start != end && GET_OPTION(usemldata) && GET_OPTION(genmldata))
+        assert(!start->keep && "In ML mode, we don't lock anything in");
+  }
   if (start == end)
     {
       solver->first_reducible = INVALID_REF;
@@ -69,26 +123,80 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
     {
       if (!c->redundant)
 	continue;
-      if (c->garbage)
+      if (c->garbage) {
+        EXTDATA(c).garbage = true;
 	continue;
+      }
+
+      // now update sums, discounted stuff etc
+      const int lifetime = (double)(CONFLICTS-EXTDATA(c).clause_born);
+      const int this_round_len = CONFLICTS - solver->limits.last_reduce.conflicts;
+      const int cl_this_round_len = this_round_len > lifetime ? this_round_len : lifetime;
+      assert(this_round_len > 0);
+      assert(cl_this_round_len >= 0);
+
+      EXTDATA(c).sum_props_used += c->props_used;
+      EXTDATA(c).sum_uip1_used += c->uip1_used;
+
+      double until_now_scale = (double)(lifetime-cl_this_round_len)/(double)lifetime;
+      double this_round_scale = (double)(cl_this_round_len)/(double)lifetime;
+
+      if (lifetime == 0) {
+        EXTDATA(c).props_used_per_conf = 0;
+        EXTDATA(c).uip1_used_per_conf = 0;
+        EXTDATA(c).discounted_props_used[0] = 0;
+        EXTDATA(c).discounted_props_used[1] = 0;
+        EXTDATA(c).discounted_uip1_used[0] = 0;
+        EXTDATA(c).discounted_uip1_used[1] = 0;
+        EXTDATA(c).sum_props_used_per_time = 0;
+        EXTDATA(c).sum_uip1_used_per_time = 0;
+      } else {
+        assert(cl_this_round_len > 0);
+        assert(lifetime > 0);
+
+        const double rate = 0.7;
+        EXTDATA(c).discounted_props_used[0] =
+          EXTDATA(c).discounted_props_used[0]*rate*until_now_scale + c->props_used*(1.0-rate)*this_round_scale;
+        EXTDATA(c).discounted_props_used[1] =
+          EXTDATA(c).discounted_props_used[1]*(1.0-rate)*until_now_scale + c->props_used*rate*this_round_scale;
+        EXTDATA(c).discounted_uip1_used[0] =
+          EXTDATA(c).discounted_uip1_used[0]*rate*until_now_scale + c->uip1_used*(1.0-rate)*this_round_scale;
+        EXTDATA(c).discounted_uip1_used[1] =
+          EXTDATA(c).discounted_uip1_used[1]*(1.0-rate)*until_now_scale + c->uip1_used*rate*this_round_scale;
+
+        EXTDATA(c).props_used_per_conf = (double)c->props_used/(double)cl_this_round_len;
+        EXTDATA(c).uip1_used_per_conf = (double)c->uip1_used/(double)cl_this_round_len;
+        assert(EXTDATA(c).cl_id = c->cl_id);
+
+        EXTDATA(c).sum_props_used_per_time = (double)EXTDATA(c).sum_props_used/(double)lifetime;
+        EXTDATA(c).sum_uip1_used_per_time = (double)EXTDATA(c).sum_uip1_used/(double)lifetime;
+      }
+      EXTDATA(c).last_touched = c->last_touched;
+
       if (c->reason)
-	continue;
+	goto end;
       if (c->keep)
-	continue;
+	goto end;
       if (c->used)
-	{
-	  c->used--;
-	  if (c->glue <= tier2)
-	    continue;
-	}
+      {
+        c->used--;
+        if (!GET_OPTION (genmldata) &&
+          (c->glue <= tier2))
+          goto end;
+      }
       assert (!c->garbage);
       assert (kissat_clause_in_arena (solver, c));
       reducible red;
       const uint64_t negative_size = ~c->size;
       const uint64_t negative_glue = ~c->glue;
-      red.rank = negative_size | (negative_glue << 32);
+      red.rank = negative_size | (negative_glue << 32); // 1st tie break: glue, 2nd tie break: size.
       red.ref = (ward *) c - arena;
       PUSH_STACK (*reds, red);
+
+      end:
+      // Zero things out
+      c->props_used = 0;
+      c->uip1_used = 0;
     }
   if (EMPTY_STACK (*reds))
     {
@@ -159,6 +267,7 @@ int
 kissat_reduce (kissat * solver)
 {
   START (reduce);
+  printf("solver->statistics.reductions: %ld\n", solver->statistics.reductions);
   INC (reductions);
   kissat_phase (solver, "reduce", GET (reductions),
 		"reduce limit %" PRIu64 " hit after %" PRIu64
@@ -185,10 +294,15 @@ kissat_reduce (kissat * solver)
 	  INIT_STACK (reds);
 	  if (collect_reducibles (solver, &reds, start))
 	    {
-	      sort_reducibles (solver, &reds);
-	      mark_less_useful_clauses_as_garbage (solver, &reds);
-	      RELEASE_STACK (reds);
-	      kissat_sparse_collect (solver, compact, start);
+              assert(!(GET_OPTION(usemldata) && GET_OPTION(usemldata)));
+              if (GET_OPTION(genmldata)) dump_ml_data(solver);
+              if (GET_OPTION(usemldata)) {
+              } else {
+                sort_reducibles (solver, &reds);
+                mark_less_useful_clauses_as_garbage (solver, &reds);
+              }
+              RELEASE_STACK (reds);
+              kissat_sparse_collect (solver, compact, start);
 	    }
 	  else if (compact)
 	    kissat_sparse_collect (solver, compact, start);
@@ -202,6 +316,7 @@ kissat_reduce (kissat * solver)
     kissat_phase (solver, "reduce", GET (reductions), "nothing to reduce");
   UPDATE_CONFLICT_LIMIT (reduce, reductions, SQRT, false);
   REPORT (0, '-');
+  solver->limits.last_reduce.conflicts = CONFLICTS;
   STOP (reduce);
   return solver->inconsistent ? 20 : 0;
 }

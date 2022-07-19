@@ -484,6 +484,7 @@ forward_subsumed_clause (kissat * solver, clause * c,
 	      assert (!c->garbage);
 	      const size_t bytes = kissat_actual_bytes_of_clause (c);
 	      ADD (arena_garbage, bytes);
+	      if (!c->garbage && c->redundant) EXTDATA(c).garbage = true;
 	      c->garbage = true;
 	      unsigned first = INVALID_LIT, second = INVALID_LIT;
 	      for (all_literals_in_clause (lit, c))

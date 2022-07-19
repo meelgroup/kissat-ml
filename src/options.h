@@ -41,6 +41,7 @@ OPTION( extract, 1, 0, 1, "extract gates in variable elimination") \
 OPTION( forcephase, 0, 0, 1, "force initial phase") \
 OPTION( forward, 1, 0, 1, "forward subsumption in BVE") \
 OPTION( forwardeffort, 100, 0, 1e6, "effort in per mille") \
+OPTION( genmldata, 0, 0, 1, "Generate ML data -- don't delete clauses") \
 OPTION( ifthenelse, 1, 0, 1, "extract and eliminate if-then-else gates") \
 OPTION( incremental, 0, 0, 1, "enable incremental solving") \
 LOGOPT( log, 0, 0, 5, "logging level (1=on,2=more,3=check,4/5=mem)") \
@@ -94,6 +95,7 @@ OPTION( target, TARGET_DEFAULT, 0, 2, "target phases (1=stable,2=focused)") \
 OPTION( tier1, 2, 1, 100, "learned clause tier one glue limit") \
 OPTION( tier2, 6, 1,1e3, "learned clause tier two glue limit") \
 OPTION( tumble, 1, 0, 1, "tumbled external indices order") \
+OPTION( usemldata, 0, 0, 1, "Use ML data to reduce redundant DB") \
 NQTOPT( verbose, 0, 0, 3, "verbosity level") \
 OPTION( vivify, 1, 0, 1, "vivify clauses") \
 OPTION( vivifyeffort, 100, 0, 1e3, "effort in per mille") \

@@ -9,27 +9,41 @@
 #include <stdbool.h>
 
 struct extdata {
+  bool garbage;
   int clause_born;
 
-  float discounted_props_made[3];
-  float discounted_uip1_used[3];
+  float discounted_props_used[2];
+  float discounted_uip1_used[2];
 
   // Over the whole lifetime of the clause
-  int sum_props_made;
+  int sum_props_used;
   int sum_uip1_used;
 
-  // Rankings (ordered, 0 is best)
-  int prop_ranking;
-  int uip1_ranking;
-  int last_touched_ranking;
+  // Calculated
+  float sum_props_used_per_time;
+  float sum_uip1_used_per_time;
 
-  // This is what we calculate
+  // Rankings (ordered, 0 is best)
+  float sum_props_used_per_time_rank_rel;
+  float sum_uip1_used_per_time_rank_rel;
+  float last_touched_rank_rel;
+
+  // Last round data / last round length
+  float props_used_per_conf;
+  float uip1_used_per_conf;
+  float last_touched;
+
+  //redundant info, but useful to have here as well, for ML
+  int cl_id;
+
+  // ML prediction value
   float pred_lev[2];
-  bool removed;
 };
 typedef struct extdata extdata;
 
 typedef struct clause clause;
+
+#define EXTDATA(c) PEEK_STACK(solver->extra_data, c->extra_data_idx)
 
 #define LD_MAX_GLUE 22u
 #define MAX_GLUE ((1u<<LD_MAX_GLUE)-1)
@@ -39,7 +53,7 @@ struct clause
   unsigned glue:LD_MAX_GLUE;
 
   bool garbage:1;
-  bool keep:1;
+  bool keep:1; // when set, it's Tier 1 (i.e. never delete)
   bool reason:1;
   bool redundant:1;
   bool shrunken:1; // orig size is not kept. Insead, this is set, and INVALID_LIT is placed at the last point in lits[]
@@ -122,5 +136,6 @@ void kissat_delete_binary (struct kissat *, bool redundant, unsigned,
 
 void kissat_mark_clause_as_garbage (struct kissat *, clause *);
 void clause_print_stats(struct kissat* solver, clause* c);
+void clause_print_extdata(extdata* d);
 
 #endif

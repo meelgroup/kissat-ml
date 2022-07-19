@@ -2,6 +2,8 @@
 #include "logging.h"
 #include "promote.h"
 
+
+//TODO look at this
 void
 kissat_promote_clause (kissat * solver, clause * c, unsigned new_glue)
 {
@@ -19,7 +21,8 @@ kissat_promote_clause (kissat * solver, clause * c, unsigned new_glue)
       assert (new_glue <= tier1);
       LOGCLS (c, "promoting with new glue %u to tier1", new_glue);
       INC (clauses_promoted1);
-      c->keep = true;
+      if (!GET_OPTION(genmldata) && !GET_OPTION(usemldata))
+        c->keep = true;
     }
   else if (old_glue > tier2 && new_glue <= tier2)
     {
