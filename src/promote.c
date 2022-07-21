@@ -21,8 +21,7 @@ kissat_promote_clause (kissat * solver, clause * c, unsigned new_glue)
       assert (new_glue <= tier1);
       LOGCLS (c, "promoting with new glue %u to tier1", new_glue);
       INC (clauses_promoted1);
-      if (!GET_OPTION(genmldata) && !GET_OPTION(usemldata))
-        c->keep = true;
+      c->keep = true;
     }
   else if (old_glue > tier2 && new_glue <= tier2)
     {

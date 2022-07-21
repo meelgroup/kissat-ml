@@ -59,10 +59,15 @@ init_clause (kissat * solver, clause * res,
     d.cl_id = res->cl_id;
     d.garbage = false;
     d.clause_born = CONFLICTS;
+    d.cl_ref = res;
     memset(d.discounted_props_used, 0, sizeof(d.discounted_props_used));
     memset(d.discounted_uip1_used, 0, sizeof(d.discounted_uip1_used));
     d.sum_props_used = 0;
     d.sum_uip1_used = 0;
+    memset(d.pred_lev, 0, sizeof(d.pred_lev));
+    d.sum_props_used_per_time_rank_rel = -1;
+    d.sum_props_used_per_time_rank_rel = -1;
+    d.last_touched_rank_rel = -1;
     PUSH_STACK(solver->extra_data, d);
     res->extra_data_idx = SIZE_STACK(solver->extra_data)-1;
   }
@@ -191,8 +196,11 @@ mark_clause_as_garbage (kissat * solver, clause * c)
 {
   assert (!c->garbage);
   LOGCLS (c, "garbage");
-  if (!c->redundant)
+  if (!c->redundant) {
     kissat_mark_removed_literals (solver, c->size, c->lits);
+  } else {
+    EXTDATA(c).garbage = true;
+  }
   REMOVE_CHECKER_CLAUSE (c);
   DELETE_CLAUSE_FROM_PROOF (c);
   dec_clause (solver, c->redundant);
@@ -261,6 +269,11 @@ void clause_print_extdata(extdata* d) {
 
 void clause_print_stats(kissat* solver, clause* c) {
   printf("Clause STATS. cl_id: %d", c->cl_id);
+  printf(" size: %d", c->size);
+  printf(" shrunken: %d", c->shrunken);
+  printf(" redundant: %d", c->redundant);
+  printf(" garbage: %d", c->garbage);
+  printf(" keep: %d", c->keep);
   if (c->redundant) {
     extdata* d = &EXTDATA(c);
     clause_print_extdata(d);

@@ -60,8 +60,15 @@ void dump_ml_data(kissat* solver) {
   extdata* i = begin;
   extdata* j = begin;
   while(i != end) {
-    if (!i->garbage) {
+    if (!i->garbage  && !i->found) {
+        // TODO why do we have these at all?
+        printf("Not found but also not garbage."); clause_print_stats(solver, i->cl_ref);
+        //i->garbage = true;
+        //i->cl_ref->garbage = true;
+      }
+    if (!i->garbage && i->found) {
       memmove(j, i, sizeof(extdata));
+      j->cl_ref->extra_data_idx = j-begin;
       j++;
     }
     i++;
@@ -76,43 +83,80 @@ void dump_ml_data(kissat* solver) {
   for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
     PEEK_STACK(solver->extra_data, i).last_touched_rank_rel = (double)i/(double)size;
   }
+  printf("Ordered last_touched.\n");
 
   qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_sum_prop_per);
   for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
     PEEK_STACK(solver->extra_data, i).sum_props_used_per_time_rank_rel = (double)i/(double)size;
   }
+  printf("Ordered sum_prop_per.\n");
 
   qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_sum_uip1_per);
   for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
     PEEK_STACK(solver->extra_data, i).sum_uip1_used_per_time_rank_rel = (double)i/(double)size;
   }
+  printf("Ordered sum_uip1_per.\n");
 
   //fix up clauses' references after sorting
+  printf("Fixing up references\n");
+  begin = BEGIN_STACK(solver->extra_data);
+  end = END_STACK(solver->extra_data);
   i = begin;
   while(i != end) {
-    i->cl_ref->extra_data_idx = i-begin;
+    clause* c = i->cl_ref;
+    c->extra_data_idx = i-begin;
+    assert(c->cl_id == EXTDATA(c).cl_id);
+    i++;
   }
 
-
+  printf("After ranking and all:\n");
   for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
-    clause_print_extdata(r);
+    clause_print_stats(solver, r->cl_ref);
+    //clause_print_extdata(r);
+    printf("\n");
   }
+  printf("Finished.\n");
+
+  ward *const arena = BEGIN_STACK (solver->arena);
+  const clause *const end_c = (clause *) END_STACK (solver->arena);
+  for (clause * c = (clause*)arena; c != end_c; c = kissat_next_clause (c))
+    {
+      if (c->garbage) continue;
+      if (!c->redundant) continue;
+      clause_print_stats(solver, c);
+      assert(c->cl_id == EXTDATA(c).cl_id);
+    }
 }
 
+// TODO if start_ref is not START_STACK() then the system does NOT work.
 /// Takes reducibles from BEGIN_STACK (solver->arena) and puts them into (reducibles * reds).
 static bool
 collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
 {
+  // Set up found = false for all of extra_data
+  extdata* begin_e = BEGIN_STACK(solver->extra_data);
+  extdata* end_e = END_STACK(solver->extra_data);
+  printf("setting up found=false...\n");
+  while(begin_e != end_e) {
+    begin_e->found = false;
+    begin_e++;
+  }
+
+
   assert (start_ref != INVALID_REF);
   assert (start_ref <= SIZE_STACK (solver->arena));
   ward *const arena = BEGIN_STACK (solver->arena);
   clause *start = (clause *) (arena + start_ref);
+  if (GET_OPTION(genmldata) || GET_OPTION(usemldata)) {
+    // must start from zero so we can re-arrange things correctly after sorting.
+    assert(start_ref == 0);
+  }
   const clause *const end = (clause *) END_STACK (solver->arena);
   assert (start < end);
-  while (start != end && (!start->redundant || start->keep)) {
+  while (start != end && (!start->redundant || (!GET_OPTION(genmldata) && start->keep))) {
     start = kissat_next_clause (start);
-    if (start != end && GET_OPTION(usemldata) && GET_OPTION(genmldata))
-        assert(!start->keep && "In ML mode, we don't lock anything in");
+    if (start != end && GET_OPTION(usemldata))
+        assert(!start->keep && "In `usemldata` mode, we don't lock anything in");
   }
   if (start == end)
     {
@@ -133,12 +177,18 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
   const unsigned tier2 = GET_OPTION (tier2);
   for (clause * c = start; c != end; c = kissat_next_clause (c))
     {
-      if (!c->redundant)
+      if (!c->redundant) {
+        if (c->extra_data_idx != -1) {
+          //used to be redundant but no longer
+          EXTDATA(c).garbage = true;
+        }
 	continue;
+      }
       if (c->garbage) {
         EXTDATA(c).garbage = true;
 	continue;
       }
+      assert (!EXTDATA(c).garbage);
 
       // now update sums, discounted stuff etc
       const int lifetime = (double)(CONFLICTS-EXTDATA(c).clause_born);
@@ -147,49 +197,56 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       assert(this_round_len > 0);
       assert(cl_this_round_len >= 0);
 
-      EXTDATA(c).sum_props_used += c->props_used;
-      EXTDATA(c).sum_uip1_used += c->uip1_used;
+      extdata* e = &EXTDATA(c);
+      e->sum_props_used += c->props_used;
+      e->sum_uip1_used += c->uip1_used;
 
       double until_now_scale = (double)(lifetime-cl_this_round_len)/(double)lifetime;
       double this_round_scale = (double)(cl_this_round_len)/(double)lifetime;
 
-      EXTDATA(c).cl_ref = c;
+      e->cl_ref = c;
+      e->found = true;
       if (lifetime == 0) {
-        EXTDATA(c).props_used_per_conf = 0;
-        EXTDATA(c).uip1_used_per_conf = 0;
-        EXTDATA(c).discounted_props_used[0] = 0;
-        EXTDATA(c).discounted_props_used[1] = 0;
-        EXTDATA(c).discounted_uip1_used[0] = 0;
-        EXTDATA(c).discounted_uip1_used[1] = 0;
-        EXTDATA(c).sum_props_used_per_time = 0;
-        EXTDATA(c).sum_uip1_used_per_time = 0;
+        e->props_used_per_conf = 0;
+        e->uip1_used_per_conf = 0;
+        e->discounted_props_used[0] = 0;
+        e->discounted_props_used[1] = 0;
+        e->discounted_uip1_used[0] = 0;
+        e->discounted_uip1_used[1] = 0;
+        e->sum_props_used_per_time = 0;
+        e->sum_uip1_used_per_time = 0;
       } else {
         assert(cl_this_round_len > 0);
         assert(lifetime > 0);
 
         const double rate = 0.7;
-        EXTDATA(c).discounted_props_used[0] =
-          EXTDATA(c).discounted_props_used[0]*rate*until_now_scale + c->props_used*(1.0-rate)*this_round_scale;
-        EXTDATA(c).discounted_props_used[1] =
-          EXTDATA(c).discounted_props_used[1]*(1.0-rate)*until_now_scale + c->props_used*rate*this_round_scale;
-        EXTDATA(c).discounted_uip1_used[0] =
-          EXTDATA(c).discounted_uip1_used[0]*rate*until_now_scale + c->uip1_used*(1.0-rate)*this_round_scale;
-        EXTDATA(c).discounted_uip1_used[1] =
-          EXTDATA(c).discounted_uip1_used[1]*(1.0-rate)*until_now_scale + c->uip1_used*rate*this_round_scale;
+        e->discounted_props_used[0] =
+          e->discounted_props_used[0]*rate*until_now_scale + c->props_used*(1.0-rate)*this_round_scale;
+        e->discounted_props_used[1] =
+          e->discounted_props_used[1]*(1.0-rate)*until_now_scale + c->props_used*rate*this_round_scale;
+        e->discounted_uip1_used[0] =
+          e->discounted_uip1_used[0]*rate*until_now_scale + c->uip1_used*(1.0-rate)*this_round_scale;
+        e->discounted_uip1_used[1] =
+          e->discounted_uip1_used[1]*(1.0-rate)*until_now_scale + c->uip1_used*rate*this_round_scale;
 
-        EXTDATA(c).props_used_per_conf = (double)c->props_used/(double)cl_this_round_len;
-        EXTDATA(c).uip1_used_per_conf = (double)c->uip1_used/(double)cl_this_round_len;
-        assert(EXTDATA(c).cl_id = c->cl_id);
+        e->props_used_per_conf = (double)c->props_used/(double)cl_this_round_len;
+        e->uip1_used_per_conf = (double)c->uip1_used/(double)cl_this_round_len;
+        //printf("e->cl_id: %d c->cl_id: %d\n", e->cl_id, c->cl_id);
+        assert(e->cl_id == c->cl_id);
 
-        EXTDATA(c).sum_props_used_per_time = (double)EXTDATA(c).sum_props_used/(double)lifetime;
-        EXTDATA(c).sum_uip1_used_per_time = (double)EXTDATA(c).sum_uip1_used/(double)lifetime;
+        e->sum_props_used_per_time = (double)e->sum_props_used/(double)lifetime;
+        e->sum_uip1_used_per_time = (double)e->sum_uip1_used/(double)lifetime;
       }
-      EXTDATA(c).last_touched = c->last_touched;
+      e->last_touched = c->last_touched;
+      printf("Seen this clause."); clause_print_stats(solver, c);
 
       if (c->reason)
 	goto end;
-      if (c->keep)
-	goto end;
+
+      if (!GET_OPTION(usemldata)) {
+        if (c->keep)
+          goto end;
+      }
       if (c->used)
       {
         c->used--;
@@ -252,7 +309,7 @@ mark_less_useful_clauses_as_garbage (kissat * solver, reducibles * reds)
       clause *c = (clause *) (arena + p->ref);
       assert (kissat_clause_in_arena (solver, c));
       assert (!c->garbage);
-      assert (!c->keep);
+      assert (GET_OPTION(usemldata) || !c->keep);
       assert (!c->reason);
       assert (c->redundant);
       LOGCLS (c, "reducing");
@@ -287,6 +344,7 @@ kissat_reduce (kissat * solver)
 		" conflicts", solver->limits.reduce.conflicts, CONFLICTS);
   bool compact = compacting (solver);
   reference start = compact ? 0 : solver->first_reducible;
+  if (GET_OPTION(genmldata) || GET_OPTION(usemldata)) start = 0;
   if (start != INVALID_REF)
     {
 #ifndef QUIET
@@ -310,6 +368,7 @@ kissat_reduce (kissat * solver)
               assert(!(GET_OPTION(usemldata) && GET_OPTION(usemldata)));
               if (GET_OPTION(genmldata)) dump_ml_data(solver);
               if (GET_OPTION(usemldata)) {
+                assert(false && "TODO");
               } else {
                 sort_reducibles (solver, &reds);
                 mark_less_useful_clauses_as_garbage (solver, &reds);
