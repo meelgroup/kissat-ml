@@ -54,6 +54,9 @@ int comp_sum_uip1_per(const void* a, const void* b) {
 void dump_ml_data(kissat* solver) {
   extdata* begin = BEGIN_STACK(solver->extra_data);
   extdata* end = END_STACK(solver->extra_data);
+
+  //Compacting, so ranking will be correct.
+  printf("Compacting...\n");
   extdata* i = begin;
   extdata* j = begin;
   while(i != end) {
@@ -65,6 +68,8 @@ void dump_ml_data(kissat* solver) {
   }
   SET_END_OF_STACK(solver->extra_data, j);
 
+  // Ordering
+  printf("Ordering...\n");
   end = END_STACK(solver->extra_data);
   #define RANK_LAST_TOUCHED(RED) (RED).last_touched
   RADIX_STACK (extdata, int, solver->extra_data, RANK_LAST_TOUCHED);
@@ -81,6 +86,13 @@ void dump_ml_data(kissat* solver) {
   for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
     PEEK_STACK(solver->extra_data, i).sum_uip1_used_per_time_rank_rel = (double)i/(double)size;
   }
+
+  //fix up clauses' references after sorting
+  i = begin;
+  while(i != end) {
+    i->cl_ref->extra_data_idx = i-begin;
+  }
+
 
   for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
     clause_print_extdata(r);
@@ -141,6 +153,7 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       double until_now_scale = (double)(lifetime-cl_this_round_len)/(double)lifetime;
       double this_round_scale = (double)(cl_this_round_len)/(double)lifetime;
 
+      EXTDATA(c).cl_ref = c;
       if (lifetime == 0) {
         EXTDATA(c).props_used_per_conf = 0;
         EXTDATA(c).uip1_used_per_conf = 0;

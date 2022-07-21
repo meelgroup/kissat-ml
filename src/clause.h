@@ -35,6 +35,7 @@ struct extdata {
 
   //redundant info, but useful to have here as well, for ML
   int cl_id;
+  struct clause* cl_ref; // needed to re-set after qsort
 
   // ML prediction value
   float pred_lev[2];
