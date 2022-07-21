@@ -52,6 +52,7 @@ int comp_sum_uip1_per(const void* a, const void* b) {
 }
 
 void dump_ml_data(kissat* solver) {
+  assert(IS_ML);
   extdata* begin = BEGIN_STACK(solver->extra_data);
   extdata* end = END_STACK(solver->extra_data);
 
@@ -128,7 +129,6 @@ void dump_ml_data(kissat* solver) {
     }
 }
 
-// TODO if start_ref is not START_STACK() then the system does NOT work.
 /// Takes reducibles from BEGIN_STACK (solver->arena) and puts them into (reducibles * reds).
 static bool
 collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
@@ -185,60 +185,61 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
 	continue;
       }
       if (c->garbage) {
-        EXTDATA(c).garbage = true;
+        if (IS_ML) EXTDATA(c).garbage = true;
 	continue;
       }
-      assert (!EXTDATA(c).garbage);
+      assert (!IS_ML || !EXTDATA(c).garbage);
 
-      // now update sums, discounted stuff etc
-      const int lifetime = (double)(CONFLICTS-EXTDATA(c).clause_born);
-      const int this_round_len = CONFLICTS - solver->limits.last_reduce.conflicts;
-      const int cl_this_round_len = this_round_len > lifetime ? this_round_len : lifetime;
-      assert(this_round_len > 0);
-      assert(cl_this_round_len >= 0);
+      if (GET_OPTION(genmldata) || GET_OPTION(usemldata)) {
+        // now update sums, discounted stuff etc
+        const int lifetime = (double)(CONFLICTS-EXTDATA(c).clause_born);
+        const int this_round_len = CONFLICTS - solver->limits.last_reduce.conflicts;
+        const int cl_this_round_len = this_round_len > lifetime ? this_round_len : lifetime;
+        assert(this_round_len > 0);
+        assert(cl_this_round_len >= 0);
 
-      extdata* e = &EXTDATA(c);
-      e->sum_props_used += c->props_used;
-      e->sum_uip1_used += c->uip1_used;
+        extdata* e = &EXTDATA(c);
+        e->sum_props_used += c->props_used;
+        e->sum_uip1_used += c->uip1_used;
 
-      double until_now_scale = (double)(lifetime-cl_this_round_len)/(double)lifetime;
-      double this_round_scale = (double)(cl_this_round_len)/(double)lifetime;
+        double until_now_scale = (double)(lifetime-cl_this_round_len)/(double)lifetime;
+        double this_round_scale = (double)(cl_this_round_len)/(double)lifetime;
 
-      e->cl_ref = c;
-      e->found = true;
-      if (lifetime == 0) {
-        e->props_used_per_conf = 0;
-        e->uip1_used_per_conf = 0;
-        e->discounted_props_used[0] = 0;
-        e->discounted_props_used[1] = 0;
-        e->discounted_uip1_used[0] = 0;
-        e->discounted_uip1_used[1] = 0;
-        e->sum_props_used_per_time = 0;
-        e->sum_uip1_used_per_time = 0;
-      } else {
-        assert(cl_this_round_len > 0);
-        assert(lifetime > 0);
+        e->cl_ref = c;
+        e->found = true;
+        if (lifetime == 0) {
+          e->props_used_per_conf = 0;
+          e->uip1_used_per_conf = 0;
+          e->discounted_props_used[0] = 0;
+          e->discounted_props_used[1] = 0;
+          e->discounted_uip1_used[0] = 0;
+          e->discounted_uip1_used[1] = 0;
+          e->sum_props_used_per_time = 0;
+          e->sum_uip1_used_per_time = 0;
+        } else {
+          assert(cl_this_round_len > 0);
+          assert(lifetime > 0);
 
-        const double rate = 0.7;
-        e->discounted_props_used[0] =
-          e->discounted_props_used[0]*rate*until_now_scale + c->props_used*(1.0-rate)*this_round_scale;
-        e->discounted_props_used[1] =
-          e->discounted_props_used[1]*(1.0-rate)*until_now_scale + c->props_used*rate*this_round_scale;
-        e->discounted_uip1_used[0] =
-          e->discounted_uip1_used[0]*rate*until_now_scale + c->uip1_used*(1.0-rate)*this_round_scale;
-        e->discounted_uip1_used[1] =
-          e->discounted_uip1_used[1]*(1.0-rate)*until_now_scale + c->uip1_used*rate*this_round_scale;
+          const double rate = 0.7;
+          e->discounted_props_used[0] =
+            e->discounted_props_used[0]*rate*until_now_scale + c->props_used*(1.0-rate)*this_round_scale;
+          e->discounted_props_used[1] =
+            e->discounted_props_used[1]*(1.0-rate)*until_now_scale + c->props_used*rate*this_round_scale;
+          e->discounted_uip1_used[0] =
+            e->discounted_uip1_used[0]*rate*until_now_scale + c->uip1_used*(1.0-rate)*this_round_scale;
+          e->discounted_uip1_used[1] =
+            e->discounted_uip1_used[1]*(1.0-rate)*until_now_scale + c->uip1_used*rate*this_round_scale;
 
-        e->props_used_per_conf = (double)c->props_used/(double)cl_this_round_len;
-        e->uip1_used_per_conf = (double)c->uip1_used/(double)cl_this_round_len;
-        //printf("e->cl_id: %d c->cl_id: %d\n", e->cl_id, c->cl_id);
-        assert(e->cl_id == c->cl_id);
+          e->props_used_per_conf = (double)c->props_used/(double)cl_this_round_len;
+          e->uip1_used_per_conf = (double)c->uip1_used/(double)cl_this_round_len;
+          //printf("e->cl_id: %d c->cl_id: %d\n", e->cl_id, c->cl_id);
+          assert(e->cl_id == c->cl_id);
 
-        e->sum_props_used_per_time = (double)e->sum_props_used/(double)lifetime;
-        e->sum_uip1_used_per_time = (double)e->sum_uip1_used/(double)lifetime;
+          e->sum_props_used_per_time = (double)e->sum_props_used/(double)lifetime;
+          e->sum_uip1_used_per_time = (double)e->sum_uip1_used/(double)lifetime;
+        }
+        e->last_touched = c->last_touched;
       }
-      e->last_touched = c->last_touched;
-      printf("Seen this clause."); clause_print_stats(solver, c);
 
       if (c->reason)
 	goto end;

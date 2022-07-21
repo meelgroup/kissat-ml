@@ -219,6 +219,7 @@ kissat_options_ref (const options * options, const opt * o)
 }
 
 #define GET_OPTION(NAME) ((int) solver->options.NAME)
+#define IS_ML (GET_OPTION(genmldata) || GET_OPTION(usemldata))
 
 #else
 

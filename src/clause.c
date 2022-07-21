@@ -53,7 +53,7 @@ init_clause (kissat * solver, clause * res,
   res->props_used = 0;
   res->uip1_used = 0;
   res->last_touched = CONFLICTS;
-  if (!redundant) res->extra_data_idx = -1;
+  if (!redundant || (!GET_OPTION(genmldata) && !GET_OPTION(usemldata))) res->extra_data_idx = -1;
   else {
     extdata d;
     d.cl_id = res->cl_id;
@@ -199,7 +199,7 @@ mark_clause_as_garbage (kissat * solver, clause * c)
   if (!c->redundant) {
     kissat_mark_removed_literals (solver, c->size, c->lits);
   } else {
-    EXTDATA(c).garbage = true;
+    if (IS_ML) EXTDATA(c).garbage = true;
   }
   REMOVE_CHECKER_CLAUSE (c);
   DELETE_CLAUSE_FROM_PROOF (c);
@@ -274,7 +274,7 @@ void clause_print_stats(kissat* solver, clause* c) {
   printf(" redundant: %d", c->redundant);
   printf(" garbage: %d", c->garbage);
   printf(" keep: %d", c->keep);
-  if (c->redundant) {
+  if (c->redundant && IS_ML) {
     extdata* d = &EXTDATA(c);
     clause_print_extdata(d);
   }
