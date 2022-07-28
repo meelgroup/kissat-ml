@@ -188,7 +188,12 @@ kissat_new_redundant_clause (kissat * solver, unsigned glue)
 {
   const unsigned size = SIZE_STACK (solver->clause);
   unsigned *lits = BEGIN_STACK (solver->clause);
-  return new_clause (solver, false, true, glue, size, lits);
+  reference ref = new_clause (solver, false, true, glue, size, lits);
+  if (ref != INVALID_REF) {
+    clause *c = kissat_dereference_clause (solver, ref);
+    printf("New redundant clause created. ID: %d Conflicts: %lu glue: %d\n", c->cl_id, CONFLICTS, c->glue);
+  }
+  return ref;
 }
 
 static void

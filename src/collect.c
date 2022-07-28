@@ -379,9 +379,11 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 	  const unsigned level = tmp ? assigned[idx].level : INVALID_LEVEL;
 
 	  if (tmp < 0 && !level)
+            // falsified literal
 	    flushed++;
 	  else if (tmp > 0 && !level)
 	    {
+              //satisfied clause
 	      assert (!satisfied);
 	      assert (!dst->reason);
 	      LOG ("SRC satisfied by %s", LOGLIT (lit));

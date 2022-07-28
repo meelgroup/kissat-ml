@@ -45,7 +45,7 @@ typedef struct extdata extdata;
 
 typedef struct clause clause;
 
-#define EXTDATA(c) PEEK_STACK(solver->extra_data, c->extra_data_idx)
+#define EXTDATA(c) PEEK_STACK(solver->extra_data, (unsigned)c->extra_data_idx)
 
 #define LD_MAX_GLUE 22u
 #define MAX_GLUE ((1u<<LD_MAX_GLUE)-1)
