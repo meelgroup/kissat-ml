@@ -190,7 +190,7 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       }
       assert (!IS_ML || !EXTDATA(c).garbage);
 
-      if (GET_OPTION(genmldata) || GET_OPTION(usemldata)) {
+      if (IS_ML) {
         // now update sums, discounted stuff etc
         const int lifetime = (double)(CONFLICTS-EXTDATA(c).clause_born);
         const int this_round_len = CONFLICTS - solver->limits.last_reduce.conflicts;
@@ -345,7 +345,7 @@ kissat_reduce (kissat * solver)
 		" conflicts", solver->limits.reduce.conflicts, CONFLICTS);
   bool compact = compacting (solver);
   reference start = compact ? 0 : solver->first_reducible;
-  if (GET_OPTION(genmldata) || GET_OPTION(usemldata)) start = 0;
+  if (IS_ML) start = 0;
   if (start != INVALID_REF)
     {
 #ifndef QUIET

@@ -53,7 +53,7 @@ init_clause (kissat * solver, clause * res,
   res->props_used = 0;
   res->uip1_used = 0;
   res->last_touched = CONFLICTS;
-  if (!redundant || (!GET_OPTION(genmldata) && !GET_OPTION(usemldata))) res->extra_data_idx = -1;
+  if (!redundant || !IS_ML) res->extra_data_idx = -1;
   else {
     extdata d;
     d.cl_id = res->cl_id;
