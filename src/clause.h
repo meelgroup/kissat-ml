@@ -15,6 +15,9 @@ struct extdata {
   float discounted_props_used[2];
   float discounted_uip1_used[2];
 
+  int props_used;
+  int uip1_used;
+
   // Over the whole lifetime of the clause
   int sum_props_used;
   int sum_uip1_used;
@@ -26,7 +29,8 @@ struct extdata {
   // Rankings (ordered, 0 is best)
   float sum_props_used_per_time_rank_rel;
   float sum_uip1_used_per_time_rank_rel;
-  float last_touched_rank_rel;
+  float props_ranking_rel;
+  float uip1_ranking_rel;
 
   // Last round data / last round length
   float props_used_per_conf;

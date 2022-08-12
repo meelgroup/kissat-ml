@@ -23,7 +23,7 @@ TSTOBJ=$(APPOBJ) $(TSTSRC:.c=.o)
 
 INCLUDES=-I../$(shell pwd|sed -e 's,.*/,,')
 
-LIBS=libkissat.a
+LIBS=libkissat.a xgboost
 
 all: @GOALS@
 

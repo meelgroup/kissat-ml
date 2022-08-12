@@ -32,6 +32,7 @@
 #include "value.h"
 #include "vector.h"
 #include "watch.h"
+#include "predict.h"
 
 typedef struct datarank datarank;
 
@@ -233,6 +234,7 @@ struct kissat
   proof *proof;
 #endif
   int cl_id;
+  struct predict pred;
   STACK (extdata) extra_data;
 };
 

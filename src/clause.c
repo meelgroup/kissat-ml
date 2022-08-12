@@ -69,7 +69,7 @@ init_clause (kissat * solver, clause * res,
     memset(d.pred_lev, 0, sizeof(d.pred_lev));
     d.sum_props_used_per_time_rank_rel = -1;
     d.sum_props_used_per_time_rank_rel = -1;
-    d.last_touched_rank_rel = -1;
+//     d.last_touched_rank_rel = -1;
     PUSH_STACK(solver->extra_data, d);
     res->extra_data_idx = SIZE_STACK(solver->extra_data)-1;
   }
@@ -268,7 +268,7 @@ void clause_print_extdata(extdata* d) {
 
     printf(" prop_ranking: %f", d->sum_props_used_per_time_rank_rel);
     printf(" uip1_ranking: %f", d->sum_uip1_used_per_time_rank_rel);
-    printf(" last_touched_ranking: %f", d->last_touched_rank_rel);
+//     printf(" last_touched_ranking: %f", d->last_touched_rank_rel);
 
     for(int i = 0; i < 2; i ++) {
       printf(" pred_lev[%d]: %f", i, d->pred_lev[i]);

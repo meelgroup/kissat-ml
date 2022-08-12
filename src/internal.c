@@ -43,6 +43,7 @@ kissat_init (void)
   kissat_init_checker (solver);
 #endif
   solver->cl_id = 0;
+  solver->pred.inited = 0;
   INIT_STACK(solver->extra_data);
   return solver;
 }

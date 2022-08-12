@@ -21,6 +21,7 @@ THE SOFTWARE.
 ***********************************************/
 
 #include "predict.h"
+#include "assert.h"
 
 
 #define safe_xgboost(call) {  \
@@ -31,12 +32,13 @@ THE SOFTWARE.
   } \
 }
 
-using namespace CMSat;
-
 void predict_setup(struct predict* pred)
 {
-    safe_xgboost(XGBoosterCreate(0, 0, &(pred->handle)))
-    safe_xgboost(XGBoosterSetParam(pred->handle, "nthread", "1"))
+    if (pred->inited == 0) {
+        safe_xgboost(XGBoosterCreate(0, 0, &(pred->handle)))
+        safe_xgboost(XGBoosterSetParam(pred->handle, "nthread", "1"))
+        pred->inited = 1;
+    }
 }
 
 void predict_del(struct predict* pred)
@@ -46,13 +48,17 @@ void predict_del(struct predict* pred)
 
 void predict_load_models(struct predict* pred, const char* short_fname)
 {
-    safe_xgboost(XGBoosterLoadModel(pred->handle));
+    assert(pred->inited > 0);
+    if (pred->inited == 1) {
+        safe_xgboost(XGBoosterLoadModel(pred->handle, short_fname))
+        pred->inited = 2;
+    }
 }
 
 void predict_all(struct predict* pred, float* const data, const uint32_t num)
 {
     safe_xgboost(
-        XGDMatrixCreateFromMat(data, num, PRED_COLS, nanf(""), &pred->dmat));
+        XGDMatrixCreateFromMat(data, num, PRED_COLS, -1, &pred->dmat));
 
     bst_ulong out_len;
     safe_xgboost(XGBoosterPredict(
@@ -74,5 +80,5 @@ double pred_get_at(struct predict* pred, const uint32_t at)
 
 void predict_finish(struct predict* pred)
 {
-    safe_xgboost(XGDMatrixFree(pred->dmat));
+    safe_xgboost(XGDMatrixFree(pred->dmat))
 }

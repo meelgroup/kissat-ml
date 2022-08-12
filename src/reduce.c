@@ -7,6 +7,7 @@
 #include "report.h"
 #include "trail.h"
 #include "stack.h"
+#include "predict.h"
 
 #include <inttypes.h>
 #include <math.h>
@@ -44,6 +45,19 @@ int comp_sum_prop_per(const void* a, const void* b) {
   extdata * b1 = (extdata*) b;
   return b1->sum_props_used_per_time > a1->sum_props_used_per_time;
 }
+
+int comp_prop(const void* a, const void* b) {
+  extdata * a1 = (extdata*) a;
+  extdata * b1 = (extdata*) b;
+  return b1->props_used > a1->props_used;
+}
+
+int comp_uip1(const void* a, const void* b) {
+  extdata * a1 = (extdata*) a;
+  extdata * b1 = (extdata*) b;
+  return b1->uip1_used > a1->uip1_used;
+}
+
 
 int comp_sum_uip1_per(const void* a, const void* b) {
   extdata * a1 = (extdata*) a;
@@ -83,13 +97,13 @@ void sort_ml(kissat* solver, reducibles* reds) {
 
   // Ordering
   printf("Ordering...\n");
-  end = END_STACK(solver->extra_data);
-  #define RANK_LAST_TOUCHED(RED) (RED).last_touched
-  RADIX_STACK (extdata, int, solver->extra_data, RANK_LAST_TOUCHED);
-  for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
-    PEEK_STACK(solver->extra_data, i).last_touched_rank_rel = (double)i/(double)size;
-  }
-  printf("Ordered last_touched.\n");
+//   end = END_STACK(solver->extra_data);
+//   #define RANK_LAST_TOUCHED(RED) (RED).last_touched
+//   RADIX_STACK (extdata, int, solver->extra_data, RANK_LAST_TOUCHED);
+//   for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
+//     PEEK_STACK(solver->extra_data, i).last_touched_rank_rel = (double)i/(double)size;
+//   }
+//   printf("Ordered last_touched.\n");
 
   qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_sum_prop_per);
   for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
@@ -103,6 +117,19 @@ void sort_ml(kissat* solver, reducibles* reds) {
   }
   printf("Ordered sum_uip1_per.\n");
 
+  qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_prop);
+  for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
+    PEEK_STACK(solver->extra_data, i).props_ranking_rel = (double)i/(double)size;
+  }
+  printf("Ordered prop.\n");
+
+  qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_uip1);
+  for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
+    PEEK_STACK(solver->extra_data, i).uip1_ranking_rel = (double)i/(double)size;
+  }
+  printf("Ordered prop.\n");
+
+
   //fix up clauses' references after sorting
   printf("Fixing up references\n");
   begin = BEGIN_STACK(solver->extra_data);
@@ -114,15 +141,41 @@ void sort_ml(kissat* solver, reducibles* reds) {
     assert(c->cl_id == EXTDATA(c).cl_id);
     i++;
   }
+  predict_setup(&solver->pred);
+  predict_load_models(&solver->pred, "short.json");
 
 //   printf("After ranking and all:\n");
-//   for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
+  float* data = malloc(sizeof(float)*PRED_COLS*SIZE_STACK(solver->extra_data));
+  float* d = data;
+  for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
 //     clause_print_stats(solver, r->cl_ref);
 //     //clause_print_extdata(r);
 //     printf("\n");
-//   }
+    *d++ = r->sum_uip1_used_per_time_rank_rel;
+    *d++ = r->sum_props_used_per_time_rank_rel;
+    *d++ = r->uip1_ranking_rel;
+    *d++ = r->props_ranking_rel;
+    *d++ = r->props_used;
+    *d++ = r->uip1_used;
+    *d++ = r->discounted_props_used[0];
+    *d++ = r->discounted_props_used[1];
+    *d++ = r->discounted_uip1_used[0];
+    *d++ = r->discounted_uip1_used[1];
+    *d++ = r->cl_ref->glue;
+  }
 //   printf("Finished.\n");
+  predict_all(&solver->pred, data, SIZE_STACK(solver->extra_data));
+  free(data);
 
+  int at = 0;
+  for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
+    clause_print_stats(solver, r->cl_ref);
+    clause_print_extdata(r);
+    double val = pred_get_at(&solver->pred, at);
+    printf(" -> pred: %f\n", val);
+    at++;
+//     printf("\n");
+  }
 
   ward *const arena = BEGIN_STACK (solver->arena);
   const clause *const end_c = (clause *) END_STACK (solver->arena);
@@ -207,6 +260,8 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
         extdata* e = &EXTDATA(c);
         e->sum_props_used += c->props_used;
         e->sum_uip1_used += c->uip1_used;
+        e->props_used = c->props_used;
+        e->uip1_used = c->uip1_used;
 
         //double until_now_scale = (double)(lifetime-cl_this_round_len)/(double)lifetime;
         //double this_round_scale = (double)(cl_this_round_len)/(double)lifetime;
