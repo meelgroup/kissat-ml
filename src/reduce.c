@@ -183,7 +183,7 @@ void sort_ml(kissat* solver, reducibles* reds) {
 
   int num_to_del = SIZE_STACK(solver->extra_data)-10000;
   for(extdata* r = BEGIN_STACK(solver->extra_data);
-      r != end && num_to_del > 0; r++) {
+      r != end && num_to_del > 0; r++, num_to_del--) {
     clause_print_stats(solver, r->cl_ref);
     clause_print_extdata(r);
     printf(" -> pred: %f\n", r->pred_lev[0]);
