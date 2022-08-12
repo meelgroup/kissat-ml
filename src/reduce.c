@@ -180,27 +180,34 @@ void sort_ml(kissat* solver, reducibles* reds) {
   free(data);
 
   qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_pred);
+  begin = BEGIN_STACK(solver->extra_data);
+  end = END_STACK(solver->extra_data);
 
   int num_to_del = SIZE_STACK(solver->extra_data)-10000;
+  at = 0;
   for(extdata* r = BEGIN_STACK(solver->extra_data);
-      r != end && num_to_del > 0; r++, num_to_del--) {
+      r != end; r++, num_to_del--) {
     clause_print_stats(solver, r->cl_ref);
+    r->cl_ref->extra_data_idx = at;
     clause_print_extdata(r);
-    printf(" -> pred: %f\n", r->pred_lev[0]);
-    kissat_mark_clause_as_garbage (solver, r->cl_ref);
+    printf(" -> predval: %f\n", r->pred_lev[0]);
+    assert(r->cl_ref->garbage == 0);
+  assert(r->cl_ref->redundant == 1);
+    if (num_to_del > 0) kissat_mark_clause_as_garbage (solver, r->cl_ref);
+    at++;
 //     printf("\n");
   }
 
   // Just checking below
-//   ward *const arena = BEGIN_STACK (solver->arena);
-//   const clause *const end_c = (clause *) END_STACK (solver->arena);
-//   for (clause * c = (clause*)arena; c != end_c; c = kissat_next_clause (c))
-//     {
-//       if (c->garbage) continue;
-//       if (!c->redundant) continue;
-//       //clause_print_stats(solver, c);
-//       assert(c->cl_id == EXTDATA(c).cl_id);
-//     }
+  ward *const arena = BEGIN_STACK (solver->arena);
+  const clause *const end_c = (clause *) END_STACK (solver->arena);
+  for (clause * c = (clause*)arena; c != end_c; c = kissat_next_clause (c))
+    {
+      if (c->garbage) continue;
+      if (!c->redundant) continue;
+      //clause_print_stats(solver, c);
+      assert(c->cl_id == EXTDATA(c).cl_id);
+    }
 }
 
 /// Takes reducibles from BEGIN_STACK (solver->arena) and puts them into (reducibles * reds).

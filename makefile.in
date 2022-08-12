@@ -49,7 +49,7 @@ kissat: main.o $(APPOBJ) libkissat.a makefile
 	$(LD) -o $@ main.o $(APPOBJ) $(LIBS) -lm -lxgboost
 
 tissat: test.o $(TSTOBJ) libkissat.a makefile
-	$(LD) -o $@ test.o $(TSTOBJ) $(LIBS) -lm
+	$(LD) -o $@ test.o $(TSTOBJ) $(LIBS) -lm -lxgboost
 
 kitten: kitten.c random.h stack.h makefile
 	$(CC) $(CFLAGS) -DSTAND_ALONE_KITTEN -o $@ ../src/kitten.c
