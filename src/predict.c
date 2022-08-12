@@ -73,7 +73,7 @@ void predict_all(struct predict* pred, float* const data, const uint32_t num)
     assert(out_len == num);
 }
 
-double pred_get_at(struct predict* pred, const uint32_t at)
+double predict_get_at(struct predict* pred, const uint32_t at)
 {
     return pred->out_result_short[at];
 }

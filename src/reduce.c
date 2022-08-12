@@ -49,13 +49,19 @@ int comp_sum_prop_per(const void* a, const void* b) {
 int comp_prop(const void* a, const void* b) {
   extdata * a1 = (extdata*) a;
   extdata * b1 = (extdata*) b;
-  return b1->props_used > a1->props_used;
+  return b1->cl_ref->props_used > a1->cl_ref->props_used;
 }
 
 int comp_uip1(const void* a, const void* b) {
   extdata * a1 = (extdata*) a;
   extdata * b1 = (extdata*) b;
-  return b1->uip1_used > a1->uip1_used;
+  return b1->cl_ref->uip1_used > a1->cl_ref->uip1_used;
+}
+
+int comp_pred(const void* a, const void* b) {
+  extdata * a1 = (extdata*) a;
+  extdata * b1 = (extdata*) b;
+  return b1->pred_lev[0] > a1->pred_lev[0];
 }
 
 
@@ -155,8 +161,8 @@ void sort_ml(kissat* solver, reducibles* reds) {
     *d++ = r->sum_props_used_per_time_rank_rel;
     *d++ = r->uip1_ranking_rel;
     *d++ = r->props_ranking_rel;
-    *d++ = r->props_used;
-    *d++ = r->uip1_used;
+    *d++ = r->cl_ref->props_used;
+    *d++ = r->cl_ref->uip1_used;
     *d++ = r->discounted_props_used[0];
     *d++ = r->discounted_props_used[1];
     *d++ = r->discounted_uip1_used[0];
@@ -165,27 +171,36 @@ void sort_ml(kissat* solver, reducibles* reds) {
   }
 //   printf("Finished.\n");
   predict_all(&solver->pred, data, SIZE_STACK(solver->extra_data));
-  free(data);
 
   int at = 0;
   for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
+    r->pred_lev[0] = predict_get_at(&solver->pred, at);
+    at++;
+  }
+  free(data);
+
+  qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_pred);
+
+  int num_to_del = SIZE_STACK(solver->extra_data)-10000;
+  for(extdata* r = BEGIN_STACK(solver->extra_data);
+      r != end && num_to_del > 0; r++) {
     clause_print_stats(solver, r->cl_ref);
     clause_print_extdata(r);
-    double val = pred_get_at(&solver->pred, at);
-    printf(" -> pred: %f\n", val);
-    at++;
+    printf(" -> pred: %f\n", r->pred_lev[0]);
+    kissat_mark_clause_as_garbage (solver, r->cl_ref);
 //     printf("\n");
   }
 
-  ward *const arena = BEGIN_STACK (solver->arena);
-  const clause *const end_c = (clause *) END_STACK (solver->arena);
-  for (clause * c = (clause*)arena; c != end_c; c = kissat_next_clause (c))
-    {
-      if (c->garbage) continue;
-      if (!c->redundant) continue;
-      //clause_print_stats(solver, c);
-      assert(c->cl_id == EXTDATA(c).cl_id);
-    }
+  // Just checking below
+//   ward *const arena = BEGIN_STACK (solver->arena);
+//   const clause *const end_c = (clause *) END_STACK (solver->arena);
+//   for (clause * c = (clause*)arena; c != end_c; c = kissat_next_clause (c))
+//     {
+//       if (c->garbage) continue;
+//       if (!c->redundant) continue;
+//       //clause_print_stats(solver, c);
+//       assert(c->cl_id == EXTDATA(c).cl_id);
+//     }
 }
 
 /// Takes reducibles from BEGIN_STACK (solver->arena) and puts them into (reducibles * reds).
@@ -252,16 +267,9 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
         assert(!EXTDATA(c).garbage);
         // now update sums, discounted stuff etc
         const int lifetime = (double)(CONFLICTS-EXTDATA(c).clause_born);
-        const int this_round_len = CONFLICTS - solver->limits.last_reduce.conflicts;
-        const int cl_this_round_len = this_round_len > lifetime ? this_round_len : lifetime;
-        assert(this_round_len > 0);
-        assert(cl_this_round_len >= 0);
-
         extdata* e = &EXTDATA(c);
         e->sum_props_used += c->props_used;
         e->sum_uip1_used += c->uip1_used;
-        e->props_used = c->props_used;
-        e->uip1_used = c->uip1_used;
 
         //double until_now_scale = (double)(lifetime-cl_this_round_len)/(double)lifetime;
         //double this_round_scale = (double)(cl_this_round_len)/(double)lifetime;
@@ -271,8 +279,6 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
         e->cl_ref = c;
         e->found = true;
         if (lifetime == 0) {
-          e->props_used_per_conf = 0;
-          e->uip1_used_per_conf = 0;
           e->discounted_props_used[0] = 0;
           e->discounted_props_used[1] = 0;
           e->discounted_uip1_used[0] = 0;
@@ -280,7 +286,6 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
           e->sum_props_used_per_time = 0;
           e->sum_uip1_used_per_time = 0;
         } else {
-          assert(cl_this_round_len > 0);
           assert(lifetime > 0);
 
           const double rate = 0.8;
@@ -294,8 +299,6 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
           e->discounted_uip1_used[1] =
             e->discounted_uip1_used[1]*rate2*until_now_scale + c->uip1_used*(1.0-rate2)*this_round_scale;
 
-          e->props_used_per_conf = (double)c->props_used/(double)cl_this_round_len;
-          e->uip1_used_per_conf = (double)c->uip1_used/(double)cl_this_round_len;
           //printf("e->cl_id: %d c->cl_id: %d\n", e->cl_id, c->cl_id);
           assert(e->cl_id == c->cl_id);
 
