@@ -100,6 +100,7 @@ COUNTER( probings, 2, CONF_INT, "", "interval") \
 COUNTER( probing_ticks, 2, PCNT_TICKS, "%", "ticks") \
 COUNTER( propagations, 0, PER_SECOND, "", "per second") \
 COUNTER( reductions, 1, CONF_INT, "", "interval") \
+COUNTER( reductionsML, 1, CONF_INT, "", "interval") \
 COUNTER( rephased, 1, CONF_INT, "", "interval") \
 METRIC( rephased_best, 1, PCNT_REPHASED, "%", "rephased") \
 METRIC( rephased_inverted, 1, PCNT_REPHASED, "%", "rephased") \

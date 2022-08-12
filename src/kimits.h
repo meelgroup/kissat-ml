@@ -132,7 +132,7 @@ do { \
     kissat_scale_delta (solver, #NAME, DELTA); \
   printf("SCALING: %f, count was: %ld SCALED: %ld", SCALING, statistics->COUNT, SCALED); \
   limits->NAME.conflicts = CONFLICTS + SCALED; \
-  printf(" new limits->NAME.conflicts: %ld\n", limits->NAME.conflicts); \
+  printf(" new limits->" #NAME ".conflicts: %ld\n", limits->NAME.conflicts); \
   kissat_phase (solver, #NAME, GET (COUNT), \
 		"new limit of %s after %s conflicts", \
 		FORMAT_COUNT (limits->NAME.conflicts), \

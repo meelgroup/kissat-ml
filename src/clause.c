@@ -35,11 +35,13 @@ init_clause (kissat * solver, clause * res,
   glue = MIN (MAX_GLUE, glue);
 
   const unsigned tier1 = GET_OPTION (tier1);
-  const bool keep = (glue <= tier1);
+  bool keep = (glue <= tier1);
+  if (redundant && GET_OPTION(usemldata)) keep = false;
 
   res->glue = glue;
 
   res->garbage = false;
+  if (redundant && GET_OPTION(usemldata)) assert(!keep);
   res->keep = keep;
   res->reason = false;
   res->redundant = redundant;
@@ -191,7 +193,8 @@ kissat_new_redundant_clause (kissat * solver, unsigned glue)
   reference ref = new_clause (solver, false, true, glue, size, lits);
   if (ref != INVALID_REF) {
     clause *c = kissat_dereference_clause (solver, ref);
-    printf("New redundant clause created. ID: %d Conflicts: %lu glue: %d\n", c->cl_id, CONFLICTS, c->glue);
+//     if (GET_OPTION(usemldata))
+//       printf("New redundant clause created. ID: %d Conflicts: %lu glue: %d\n", c->cl_id, CONFLICTS, c->glue);
   }
   return ref;
 }

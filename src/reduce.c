@@ -51,19 +51,23 @@ int comp_sum_uip1_per(const void* a, const void* b) {
   return b1->sum_uip1_used_per_time > a1->sum_uip1_used_per_time;
 }
 
-void dump_ml_data(kissat* solver) {
+void sort_ml(kissat* solver, reducibles* reds) {
   assert(IS_ML);
   extdata* begin = BEGIN_STACK(solver->extra_data);
   extdata* end = END_STACK(solver->extra_data);
 
   //Compacting, so ranking will be correct.
+  int num_not_found = 0;
   printf("Compacting...\n");
   extdata* i = begin;
   extdata* j = begin;
   while(i != end) {
     if (!i->garbage  && !i->found) {
         // TODO why do we have these at all?
-        printf("Not found but also not garbage."); clause_print_stats(solver, i->cl_ref);
+        printf("Not found but also not garbage.\n");
+        num_not_found++;
+        //clause_print_stats(solver, i->cl_ref);
+        //assert(false);
         //i->garbage = true;
         //i->cl_ref->garbage = true;
       }
@@ -74,6 +78,7 @@ void dump_ml_data(kissat* solver) {
     }
     i++;
   }
+  printf("num_not_found: %d\n", num_not_found);
   SET_END_OF_STACK(solver->extra_data, j);
 
   // Ordering
@@ -110,13 +115,14 @@ void dump_ml_data(kissat* solver) {
     i++;
   }
 
-  printf("After ranking and all:\n");
-  for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
-    clause_print_stats(solver, r->cl_ref);
-    //clause_print_extdata(r);
-    printf("\n");
-  }
-  printf("Finished.\n");
+//   printf("After ranking and all:\n");
+//   for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
+//     clause_print_stats(solver, r->cl_ref);
+//     //clause_print_extdata(r);
+//     printf("\n");
+//   }
+//   printf("Finished.\n");
+
 
   ward *const arena = BEGIN_STACK (solver->arena);
   const clause *const end_c = (clause *) END_STACK (solver->arena);
@@ -124,7 +130,7 @@ void dump_ml_data(kissat* solver) {
     {
       if (c->garbage) continue;
       if (!c->redundant) continue;
-      clause_print_stats(solver, c);
+      //clause_print_stats(solver, c);
       assert(c->cl_id == EXTDATA(c).cl_id);
     }
 }
@@ -147,15 +153,15 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
   assert (start_ref <= SIZE_STACK (solver->arena));
   ward *const arena = BEGIN_STACK (solver->arena);
   clause *start = (clause *) (arena + start_ref);
-  if (GET_OPTION(genmldata) || GET_OPTION(usemldata)) {
+  if (GET_OPTION(usemldata)) {
     // must start from zero so we can re-arrange things correctly after sorting.
     assert(start_ref == 0);
   }
   const clause *const end = (clause *) END_STACK (solver->arena);
   assert (start < end);
-  while (start != end && (!start->redundant || (!GET_OPTION(genmldata) && start->keep))) {
+  while (start != end && (!start->redundant || start->keep)) {
     start = kissat_next_clause (start);
-    if (start != end && GET_OPTION(usemldata))
+    if (start != end && GET_OPTION(usemldata) && start->redundant)
         assert(!start->keep && "In `usemldata` mode, we don't lock anything in");
   }
   if (start == end)
@@ -188,9 +194,9 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
         if (IS_ML) EXTDATA(c).garbage = true;
 	continue;
       }
-      assert (!IS_ML || !EXTDATA(c).garbage);
 
       if (IS_ML) {
+        assert(!EXTDATA(c).garbage);
         // now update sums, discounted stuff etc
         const int lifetime = (double)(CONFLICTS-EXTDATA(c).clause_born);
         const int this_round_len = CONFLICTS - solver->limits.last_reduce.conflicts;
@@ -202,8 +208,10 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
         e->sum_props_used += c->props_used;
         e->sum_uip1_used += c->uip1_used;
 
-        double until_now_scale = (double)(lifetime-cl_this_round_len)/(double)lifetime;
-        double this_round_scale = (double)(cl_this_round_len)/(double)lifetime;
+        //double until_now_scale = (double)(lifetime-cl_this_round_len)/(double)lifetime;
+        //double this_round_scale = (double)(cl_this_round_len)/(double)lifetime;
+        double until_now_scale = 1.0;
+        double this_round_scale = 1.0;
 
         e->cl_ref = c;
         e->found = true;
@@ -220,15 +228,16 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
           assert(cl_this_round_len > 0);
           assert(lifetime > 0);
 
-          const double rate = 0.7;
+          const double rate = 0.8;
+          const double rate2 = 0.4;
           e->discounted_props_used[0] =
             e->discounted_props_used[0]*rate*until_now_scale + c->props_used*(1.0-rate)*this_round_scale;
           e->discounted_props_used[1] =
-            e->discounted_props_used[1]*(1.0-rate)*until_now_scale + c->props_used*rate*this_round_scale;
+            e->discounted_props_used[1]*rate2*until_now_scale + c->props_used*(1.0-rate2)*this_round_scale;
           e->discounted_uip1_used[0] =
             e->discounted_uip1_used[0]*rate*until_now_scale + c->uip1_used*(1.0-rate)*this_round_scale;
           e->discounted_uip1_used[1] =
-            e->discounted_uip1_used[1]*(1.0-rate)*until_now_scale + c->uip1_used*rate*this_round_scale;
+            e->discounted_uip1_used[1]*rate2*until_now_scale + c->uip1_used*(1.0-rate2)*this_round_scale;
 
           e->props_used_per_conf = (double)c->props_used/(double)cl_this_round_len;
           e->uip1_used_per_conf = (double)c->uip1_used/(double)cl_this_round_len;
@@ -251,8 +260,7 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       if (c->used)
       {
         c->used--;
-        if (!GET_OPTION (genmldata) &&
-          (c->glue <= tier2))
+        if (c->glue <= tier2)
           goto end;
       }
       assert (!c->garbage);
@@ -366,10 +374,10 @@ kissat_reduce (kissat * solver)
 	  INIT_STACK (reds);
 	  if (collect_reducibles (solver, &reds, start))
 	    {
-              assert(!(GET_OPTION(usemldata) && GET_OPTION(usemldata)));
-              if (GET_OPTION(genmldata)) dump_ml_data(solver);
               if (GET_OPTION(usemldata)) {
-                assert(false && "TODO");
+                //assert(false && "TODO");
+                sort_ml (solver, &reds);
+                //mark_less_useful_clauses_as_garbage (solver, &reds);
               } else {
                 sort_reducibles (solver, &reds);
                 mark_less_useful_clauses_as_garbage (solver, &reds);
@@ -387,7 +395,13 @@ kissat_reduce (kissat * solver)
     }
   else
     kissat_phase (solver, "reduce", GET (reductions), "nothing to reduce");
-  UPDATE_CONFLICT_LIMIT (reduce, reductions, SQRT, false);
+  if (GET_OPTION(usemldata)) {
+    solver->statistics.reductionsML = 1;
+    solver->options.reduceint = 1e4;
+    UPDATE_CONFLICT_LIMIT (reduce, reductionsML, SQRT, false);
+  } else {
+    UPDATE_CONFLICT_LIMIT (reduce, reductions, SQRT, false);
+  }
   REPORT (0, '-');
   solver->limits.last_reduce.conflicts = CONFLICTS;
   STOP (reduce);
