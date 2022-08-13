@@ -78,31 +78,31 @@ void sort_ml(kissat* solver, reducibles* reds) {
   reducible* end = END_STACK(*reds);
 
   // Ordering
-  printf("Ordering...\n");
+  kissat_verbose(solver, "Ordering...\n");
 
   qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_sum_prop_per);
   for(unsigned i = 0, size = SIZE_STACK(*reds); i < size; i++) {
     PEEK_STACK(*reds, i).e->sum_props_used_per_time_rank_rel = (double)i/(double)size;
   }
-  printf("Ordered sum_prop_per.\n");
+  kissat_verbose(solver, "Ordered sum_prop_per.\n");
 
   qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_sum_uip1_per);
   for(unsigned i = 0, size = SIZE_STACK(*reds); i < size; i++) {
     PEEK_STACK(*reds, i).e->sum_uip1_used_per_time_rank_rel = (double)i/(double)size;
   }
-  printf("Ordered sum_uip1_per.\n");
+  kissat_verbose(solver, "Ordered sum_uip1_per.\n");
 
   qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_prop);
   for(unsigned i = 0, size = SIZE_STACK(*reds); i < size; i++) {
     PEEK_STACK(*reds, i).e->props_ranking_rel = (double)i/(double)size;
   }
-  printf("Ordered prop.\n");
+  kissat_verbose(solver, "Ordered prop.\n");
 
   qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_uip1);
   for(unsigned i = 0, size = SIZE_STACK(*reds); i < size; i++) {
     PEEK_STACK(*reds, i).e->uip1_ranking_rel = (double)i/(double)size;
   }
-  printf("Ordered prop.\n");
+  kissat_verbose(solver, "Ordered prop.\n");
 
   predict_setup(&solver->pred);
   predict_load_models(&solver->pred, "short.json");
@@ -139,24 +139,28 @@ void sort_ml(kissat* solver, reducibles* reds) {
   qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_pred);
   end = END_STACK(*reds);
 
-  int num_to_del = (int)SIZE_STACK(*reds)-10000;
+  int num_to_del = (int)SIZE_STACK(*reds)-50000;
   at = 0;
   for(int i = SIZE_STACK(*reds)-1; i >= 0; i--, num_to_del--) {
     reducible* r = &PEEK_STACK(*reds, i);
-    clause_print_stats(solver, r->c);
-    clause_print_extdata(r->e);
-    printf(" -> predval: %f", r->e->pred_lev[0]);
+    if (GET_OPTION(verbose)) {
+      clause_print_stats(solver, r->c);
+      clause_print_extdata(r->e);
+      printf(" -> predval: %f", r->e->pred_lev[0]);
+    }
+
     assert(r->c->garbage == 0);
     assert(r->c->redundant == 1);
+
     if (num_to_del > 0) {
       kissat_mark_clause_as_garbage (solver, r->c);
-      printf("--> GARBAGE\n");
+      if (GET_OPTION(verbose)) printf("--> GARBAGE\n");
     } else {
-      printf("--> KEEP\n");
+      if (GET_OPTION(verbose)) printf("--> KEEP\n");
     }
     at++;
   }
-  printf("----------predval -- FINISH -------------------\n");
+  kissat_verbose(solver, "----------predval -- FINISH -------------------\n");
 
   // Just checking below
   ward *const arena = BEGIN_STACK (solver->arena);
@@ -174,16 +178,6 @@ void sort_ml(kissat* solver, reducibles* reds) {
 static bool
 collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
 {
-  // Set up found = false for all of extra_data
-  extdata* begin_e = BEGIN_STACK(solver->extra_data);
-  extdata* end_e = END_STACK(solver->extra_data);
-  printf("setting up found=false...\n");
-  while(begin_e != end_e) {
-    begin_e->found = false;
-    begin_e++;
-  }
-
-
   assert (start_ref != INVALID_REF);
   assert (start_ref <= SIZE_STACK (solver->arena));
   ward *const arena = BEGIN_STACK (solver->arena);
@@ -244,7 +238,6 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
         double this_round_scale = 1.0;
 
         e->cl_ref = c;
-        e->found = true;
         if (lifetime == 0) {
           e->discounted_props_used[0] = 0;
           e->discounted_props_used[1] = 0;
@@ -297,7 +290,7 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       red.rank = negative_size | (negative_glue << 32); // 1st tie break: glue, 2nd tie break: size.
       red.ref = (ward *) c - arena;
       red.c = c;
-      red.e = &EXTDATA(c);
+      if (GET_OPTION(usemldata)) red.e = &EXTDATA(c);
       PUSH_STACK (*reds, red);
 
       end:

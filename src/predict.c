@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 #include "predict.h"
 #include "assert.h"
+#include "stdlib.h"
 
 
 #define safe_xgboost(call) {  \
