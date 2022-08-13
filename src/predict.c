@@ -35,6 +35,7 @@ THE SOFTWARE.
 void predict_setup(struct predict* pred)
 {
     if (pred->inited == 0) {
+        printf("Initing xgboost...\n");
         safe_xgboost(XGBoosterCreate(0, 0, &(pred->handle)))
         safe_xgboost(XGBoosterSetParam(pred->handle, "nthread", "1"))
         pred->inited = 1;
@@ -50,6 +51,7 @@ void predict_load_models(struct predict* pred, const char* short_fname)
 {
     assert(pred->inited > 0);
     if (pred->inited == 1) {
+        printf("Loading model...\n");
         safe_xgboost(XGBoosterLoadModel(pred->handle, short_fname))
         pred->inited = 2;
     }

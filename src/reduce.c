@@ -29,6 +29,8 @@ typedef struct reducible reducible;
 struct reducible
 {
   uint64_t rank;
+  clause* c;
+  extdata* e;
   unsigned ref; //BEGIN_STACK (solver->arena); + ref == pointer to clause
 };
 
@@ -41,162 +43,120 @@ typedef STACK (reducible) reducibles;
 
 
 int comp_sum_prop_per(const void* a, const void* b) {
-  extdata * a1 = (extdata*) a;
-  extdata * b1 = (extdata*) b;
-  return b1->sum_props_used_per_time > a1->sum_props_used_per_time;
+  reducible * a1 = (reducible*) a;
+  reducible * b1 = (reducible*) b;
+  return b1->e->sum_props_used_per_time > a1->e->sum_props_used_per_time;
 }
 
 int comp_prop(const void* a, const void* b) {
-  extdata * a1 = (extdata*) a;
-  extdata * b1 = (extdata*) b;
-  return b1->cl_ref->props_used > a1->cl_ref->props_used;
+  reducible * a1 = (reducible*) a;
+  reducible * b1 = (reducible*) b;
+  return b1->c->props_used > a1->c->props_used;
 }
 
 int comp_uip1(const void* a, const void* b) {
-  extdata * a1 = (extdata*) a;
-  extdata * b1 = (extdata*) b;
-  return b1->cl_ref->uip1_used > a1->cl_ref->uip1_used;
+  reducible * a1 = (reducible*) a;
+  reducible * b1 = (reducible*) b;
+  return b1->c->uip1_used > a1->c->uip1_used;
 }
 
 int comp_pred(const void* a, const void* b) {
-  extdata * a1 = (extdata*) a;
-  extdata * b1 = (extdata*) b;
-  return b1->pred_lev[0] > a1->pred_lev[0];
+  reducible * a1 = (reducible*) a;
+  reducible * b1 = (reducible*) b;
+  return b1->e->pred_lev[0] > a1->e->pred_lev[0];
 }
 
 
 int comp_sum_uip1_per(const void* a, const void* b) {
-  extdata * a1 = (extdata*) a;
-  extdata * b1 = (extdata*) b;
-  return b1->sum_uip1_used_per_time > a1->sum_uip1_used_per_time;
+  reducible * a1 = (reducible*) a;
+  reducible * b1 = (reducible*) b;
+  return b1->e->sum_uip1_used_per_time > a1->e->sum_uip1_used_per_time;
 }
 
 void sort_ml(kissat* solver, reducibles* reds) {
   assert(IS_ML);
-  extdata* begin = BEGIN_STACK(solver->extra_data);
-  extdata* end = END_STACK(solver->extra_data);
-
-  //Compacting, so ranking will be correct.
-  int num_not_found = 0;
-  printf("Compacting...\n");
-  extdata* i = begin;
-  extdata* j = begin;
-  while(i != end) {
-    if (!i->garbage  && !i->found) {
-        // TODO why do we have these at all?
-        printf("Not found but also not garbage.\n");
-        num_not_found++;
-        //clause_print_stats(solver, i->cl_ref);
-        //assert(false);
-        //i->garbage = true;
-        //i->cl_ref->garbage = true;
-      }
-    if (!i->garbage && i->found) {
-      memmove(j, i, sizeof(extdata));
-      j->cl_ref->extra_data_idx = j-begin;
-      j++;
-    }
-    i++;
-  }
-  printf("num_not_found: %d\n", num_not_found);
-  SET_END_OF_STACK(solver->extra_data, j);
+  reducible* end = END_STACK(*reds);
 
   // Ordering
   printf("Ordering...\n");
-//   end = END_STACK(solver->extra_data);
-//   #define RANK_LAST_TOUCHED(RED) (RED).last_touched
-//   RADIX_STACK (extdata, int, solver->extra_data, RANK_LAST_TOUCHED);
-//   for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
-//     PEEK_STACK(solver->extra_data, i).last_touched_rank_rel = (double)i/(double)size;
-//   }
-//   printf("Ordered last_touched.\n");
 
-  qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_sum_prop_per);
-  for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
-    PEEK_STACK(solver->extra_data, i).sum_props_used_per_time_rank_rel = (double)i/(double)size;
+  qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_sum_prop_per);
+  for(unsigned i = 0, size = SIZE_STACK(*reds); i < size; i++) {
+    PEEK_STACK(*reds, i).e->sum_props_used_per_time_rank_rel = (double)i/(double)size;
   }
   printf("Ordered sum_prop_per.\n");
 
-  qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_sum_uip1_per);
-  for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
-    PEEK_STACK(solver->extra_data, i).sum_uip1_used_per_time_rank_rel = (double)i/(double)size;
+  qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_sum_uip1_per);
+  for(unsigned i = 0, size = SIZE_STACK(*reds); i < size; i++) {
+    PEEK_STACK(*reds, i).e->sum_uip1_used_per_time_rank_rel = (double)i/(double)size;
   }
   printf("Ordered sum_uip1_per.\n");
 
-  qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_prop);
-  for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
-    PEEK_STACK(solver->extra_data, i).props_ranking_rel = (double)i/(double)size;
+  qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_prop);
+  for(unsigned i = 0, size = SIZE_STACK(*reds); i < size; i++) {
+    PEEK_STACK(*reds, i).e->props_ranking_rel = (double)i/(double)size;
   }
   printf("Ordered prop.\n");
 
-  qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_uip1);
-  for(int i = 0, size = SIZE_STACK(solver->extra_data); i < size; i++) {
-    PEEK_STACK(solver->extra_data, i).uip1_ranking_rel = (double)i/(double)size;
+  qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_uip1);
+  for(unsigned i = 0, size = SIZE_STACK(*reds); i < size; i++) {
+    PEEK_STACK(*reds, i).e->uip1_ranking_rel = (double)i/(double)size;
   }
   printf("Ordered prop.\n");
 
-
-  //fix up clauses' references after sorting
-  printf("Fixing up references\n");
-  begin = BEGIN_STACK(solver->extra_data);
-  end = END_STACK(solver->extra_data);
-  i = begin;
-  while(i != end) {
-    clause* c = i->cl_ref;
-    c->extra_data_idx = i-begin;
-    assert(c->cl_id == EXTDATA(c).cl_id);
-    i++;
-  }
   predict_setup(&solver->pred);
   predict_load_models(&solver->pred, "short.json");
 
 //   printf("After ranking and all:\n");
-  float* data = malloc(sizeof(float)*PRED_COLS*SIZE_STACK(solver->extra_data));
+  float* data = malloc(sizeof(float)*PRED_COLS*SIZE_STACK(*reds));
   float* d = data;
-  for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
+  for(reducible* r = BEGIN_STACK(*reds); r != end; r++) {
 //     clause_print_stats(solver, r->cl_ref);
 //     //clause_print_extdata(r);
 //     printf("\n");
-    *d++ = r->sum_uip1_used_per_time_rank_rel;
-    *d++ = r->sum_props_used_per_time_rank_rel;
-    *d++ = r->uip1_ranking_rel;
-    *d++ = r->props_ranking_rel;
-    *d++ = r->cl_ref->props_used;
-    *d++ = r->cl_ref->uip1_used;
-    *d++ = r->discounted_props_used[0];
-    *d++ = r->discounted_props_used[1];
-    *d++ = r->discounted_uip1_used[0];
-    *d++ = r->discounted_uip1_used[1];
-    *d++ = r->cl_ref->glue;
+    *d++ = r->e->sum_uip1_used_per_time_rank_rel;
+    *d++ = r->e->sum_props_used_per_time_rank_rel;
+    *d++ = r->e->uip1_ranking_rel;
+    *d++ = r->e->props_ranking_rel;
+    *d++ = r->c->props_used;
+    *d++ = r->c->uip1_used;
+    *d++ = r->e->discounted_props_used[0];
+    *d++ = r->e->discounted_props_used[1];
+    *d++ = r->e->discounted_uip1_used[0];
+    *d++ = r->e->discounted_uip1_used[1];
+    *d++ = r->c->glue;
   }
 //   printf("Finished.\n");
-  predict_all(&solver->pred, data, SIZE_STACK(solver->extra_data));
+  predict_all(&solver->pred, data, SIZE_STACK(*reds));
 
   int at = 0;
-  for(extdata* r = BEGIN_STACK(solver->extra_data); r != end; r++) {
-    r->pred_lev[0] = predict_get_at(&solver->pred, at);
+  for(reducible* r = BEGIN_STACK(*reds); r != end; r++) {
+    r->e->pred_lev[0] = predict_get_at(&solver->pred, at);
     at++;
   }
   free(data);
 
-  qsort(BEGIN_STACK(solver->extra_data), SIZE_STACK(solver->extra_data), sizeof(extdata), comp_pred);
-  begin = BEGIN_STACK(solver->extra_data);
-  end = END_STACK(solver->extra_data);
+  qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_pred);
+  end = END_STACK(*reds);
 
-  int num_to_del = SIZE_STACK(solver->extra_data)-10000;
+  int num_to_del = (int)SIZE_STACK(*reds)-10000;
   at = 0;
-  for(extdata* r = BEGIN_STACK(solver->extra_data);
-      r != end; r++, num_to_del--) {
-    clause_print_stats(solver, r->cl_ref);
-    r->cl_ref->extra_data_idx = at;
-    clause_print_extdata(r);
-    printf(" -> predval: %f\n", r->pred_lev[0]);
-    assert(r->cl_ref->garbage == 0);
-  assert(r->cl_ref->redundant == 1);
-    if (num_to_del > 0) kissat_mark_clause_as_garbage (solver, r->cl_ref);
+  for(int i = SIZE_STACK(*reds)-1; i >= 0; i--, num_to_del--) {
+    reducible* r = &PEEK_STACK(*reds, i);
+    clause_print_stats(solver, r->c);
+    clause_print_extdata(r->e);
+    printf(" -> predval: %f", r->e->pred_lev[0]);
+    assert(r->c->garbage == 0);
+    assert(r->c->redundant == 1);
+    if (num_to_del > 0) {
+      kissat_mark_clause_as_garbage (solver, r->c);
+      printf("--> GARBAGE\n");
+    } else {
+      printf("--> KEEP\n");
+    }
     at++;
-//     printf("\n");
   }
+  printf("----------predval -- FINISH -------------------\n");
 
   // Just checking below
   ward *const arena = BEGIN_STACK (solver->arena);
@@ -321,12 +281,13 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       if (!GET_OPTION(usemldata)) {
         if (c->keep)
           goto end;
-      }
-      if (c->used)
-      {
-        c->used--;
-        if (c->glue <= tier2)
-          goto end;
+
+        if (c->used)
+        {
+          c->used--;
+          if (c->glue <= tier2)
+            goto end;
+        }
       }
       assert (!c->garbage);
       assert (kissat_clause_in_arena (solver, c));
@@ -335,6 +296,8 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       const uint64_t negative_glue = ~c->glue;
       red.rank = negative_size | (negative_glue << 32); // 1st tie break: glue, 2nd tie break: size.
       red.ref = (ward *) c - arena;
+      red.c = c;
+      red.e = &EXTDATA(c);
       PUSH_STACK (*reds, red);
 
       end:
