@@ -141,7 +141,7 @@ void sort_ml(kissat* solver, reducibles* reds) {
 
   int num_to_del = (int)SIZE_STACK(*reds)-50000;
   at = 0;
-  for(int i = SIZE_STACK(*reds)-1; i >= 0; i--, num_to_del--) {
+  for(int i = SIZE_STACK(*reds)-1; i >= 0 && num_to_del > 0; i--, num_to_del--) {
     reducible* r = &PEEK_STACK(*reds, i);
     if (GET_OPTION(verbose)) {
       clause_print_stats(solver, r->c);
@@ -149,10 +149,11 @@ void sort_ml(kissat* solver, reducibles* reds) {
       printf(" -> predval: %f", r->e->pred_lev[0]);
     }
 
+    const int lifetime = (int)CONFLICTS-(int)r->e->clause_born;
     assert(r->c->garbage == 0);
     assert(r->c->redundant == 1);
 
-    if (num_to_del > 0) {
+    if (num_to_del > 0 && lifetime > 10000) {
       kissat_mark_clause_as_garbage (solver, r->c);
       if (GET_OPTION(verbose)) printf("--> GARBAGE\n");
     } else {
@@ -163,15 +164,15 @@ void sort_ml(kissat* solver, reducibles* reds) {
   kissat_verbose(solver, "----------predval -- FINISH -------------------\n");
 
   // Just checking below
-  ward *const arena = BEGIN_STACK (solver->arena);
-  const clause *const end_c = (clause *) END_STACK (solver->arena);
-  for (clause * c = (clause*)arena; c != end_c; c = kissat_next_clause (c))
-    {
-      if (c->garbage) continue;
-      if (!c->redundant) continue;
-      //clause_print_stats(solver, c);
-      assert(c->cl_id == EXTDATA(c).cl_id);
-    }
+//   ward *const arena = BEGIN_STACK (solver->arena);
+//   const clause *const end_c = (clause *) END_STACK (solver->arena);
+//   for (clause * c = (clause*)arena; c != end_c; c = kissat_next_clause (c))
+//     {
+//       if (c->garbage) continue;
+//       if (!c->redundant) continue;
+//       //clause_print_stats(solver, c);
+//       assert(c->cl_id == EXTDATA(c).cl_id);
+//     }
 }
 
 /// Takes reducibles from BEGIN_STACK (solver->arena) and puts them into (reducibles * reds).
@@ -227,7 +228,7 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       if (IS_ML) {
         assert(!EXTDATA(c).garbage);
         // now update sums, discounted stuff etc
-        const int lifetime = (double)(CONFLICTS-EXTDATA(c).clause_born);
+        const int lifetime = (int)CONFLICTS-(int)EXTDATA(c).clause_born;
         extdata* e = &EXTDATA(c);
         e->sum_props_used += c->props_used;
         e->sum_uip1_used += c->uip1_used;
