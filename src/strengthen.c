@@ -205,7 +205,6 @@ kissat_on_the_fly_subsume (kissat * solver, clause * c, clause * d)
   else
     {
       if (c->redundant) {
-        printf("Becoming irredundant: %d", c->cl_id);
         if (IS_ML) EXTDATA(c).garbage = true;
       }
       c->redundant = false;

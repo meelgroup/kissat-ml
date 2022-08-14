@@ -63,7 +63,6 @@ struct clause
 
   unsigned used:2;
   int extra_data_idx;
-  int cl_id;
   int props_used;
   int uip1_used;
   int last_touched;

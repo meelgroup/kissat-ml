@@ -51,14 +51,12 @@ init_clause (kissat * solver, clause * res,
   res->vivify = false;
 
   res->used = 0;
-  res->cl_id = solver->cl_id++;
   res->props_used = 0;
   res->uip1_used = 0;
   res->last_touched = CONFLICTS;
   if (!redundant || !IS_ML) res->extra_data_idx = -1;
   else {
     extdata d;
-    d.cl_id = res->cl_id;
     d.garbage = false;
     d.clause_born = CONFLICTS;
     d.cl_ref = res;
@@ -276,7 +274,7 @@ void clause_print_extdata(extdata* d) {
 }
 
 void clause_print_stats(kissat* solver, clause* c) {
-  printf("Clause STATS. cl_id: %d", c->cl_id);
+  printf("Clause STATS.");
   printf(" size: %d", c->size);
   printf(" shrunken: %d", c->shrunken);
   printf(" redundant: %d", c->redundant);

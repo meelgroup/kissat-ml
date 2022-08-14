@@ -260,9 +260,6 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
           e->discounted_uip1_used[1] =
             e->discounted_uip1_used[1]*rate2*until_now_scale + c->uip1_used*(1.0-rate2)*this_round_scale;
 
-          //printf("e->cl_id: %d c->cl_id: %d\n", e->cl_id, c->cl_id);
-          assert(e->cl_id == c->cl_id);
-
           e->sum_props_used_per_time = (double)e->sum_props_used/(double)lifetime;
           e->sum_uip1_used_per_time = (double)e->sum_uip1_used/(double)lifetime;
         }
