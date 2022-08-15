@@ -191,7 +191,7 @@ kissat_new_redundant_clause (kissat * solver, unsigned glue)
   unsigned *lits = BEGIN_STACK (solver->clause);
   reference ref = new_clause (solver, false, true, glue, size, lits);
   if (ref != INVALID_REF) {
-    clause *c = kissat_dereference_clause (solver, ref);
+//     clause *c = kissat_dereference_clause (solver, ref);
 //     if (GET_OPTION(usemldata))
 //       printf("New redundant clause created. ID: %d Conflicts: %lu glue: %d\n", c->cl_id, CONFLICTS, c->glue);
   }
