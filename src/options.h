@@ -49,6 +49,7 @@ OPTION( mineffort, 10, 0, INT_MAX, "minimum absolute effort in millions") \
 OPTION( minimize, 1, 0, 1, "learned clause minimization") \
 OPTION( minimizedepth, 1e3, 1, 1e6, "minimization depth") \
 OPTION( minimizeticks, 1, 0, 1, "count ticks in minimize and shrink") \
+OPTION( mlsize, 50000, 10000, INT_MAX, "Fixed size of kept clauses for ML") \
 OPTION( modeinit, 1e3, 10, 1e8, "initial focused conflicts limit") \
 OPTION( otfs, 1, 0, 1, "on-the-fly strengthening") \
 OPTION( phase, 1, 0, 1, "initial decision phase") \
