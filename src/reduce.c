@@ -121,8 +121,8 @@ void sort_ml(kissat* solver, reducibles* reds, int tier) {
     *d++ = r->e->sum_props_used_per_time_rank_rel;
     *d++ = r->e->uip1_ranking_rel;
     *d++ = r->e->props_ranking_rel;
-    *d++ = r->c->props_used;
-    *d++ = r->c->uip1_used;
+    *d++ = r->e->props_used;
+    *d++ = r->e->uip1_used;
     *d++ = r->e->discounted_props_used[0];
     *d++ = r->e->discounted_props_used[1];
     *d++ = r->e->discounted_uip1_used[0];
@@ -241,11 +241,6 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
         e->sum_props_used += c->props_used;
         e->sum_uip1_used += c->uip1_used;
 
-        //double until_now_scale = (double)(lifetime-cl_this_round_len)/(double)lifetime;
-        //double this_round_scale = (double)(cl_this_round_len)/(double)lifetime;
-        double until_now_scale = 1.0;
-        double this_round_scale = 1.0;
-
         e->cl_ref = c;
         if (lifetime == 0) {
           e->discounted_props_used[0] = 0;
@@ -254,22 +249,26 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
           e->discounted_uip1_used[1] = 0;
           e->sum_props_used_per_time = 0;
           e->sum_uip1_used_per_time = 0;
+          e->props_used = 0;
+          e->uip1_used = 0;
         } else {
           assert(lifetime > 0);
 
           const double rate = 0.8;
           const double rate2 = 0.4;
           e->discounted_props_used[0] =
-            e->discounted_props_used[0]*rate*until_now_scale + c->props_used*(1.0-rate)*this_round_scale;
+            e->discounted_props_used[0]*rate + c->props_used*(1.0-rate);
           e->discounted_props_used[1] =
-            e->discounted_props_used[1]*rate2*until_now_scale + c->props_used*(1.0-rate2)*this_round_scale;
+            e->discounted_props_used[1]*rate2 + c->props_used*(1.0-rate2);
           e->discounted_uip1_used[0] =
-            e->discounted_uip1_used[0]*rate*until_now_scale + c->uip1_used*(1.0-rate)*this_round_scale;
+            e->discounted_uip1_used[0]*rate + c->uip1_used*(1.0-rate);
           e->discounted_uip1_used[1] =
-            e->discounted_uip1_used[1]*rate2*until_now_scale + c->uip1_used*(1.0-rate2)*this_round_scale;
+            e->discounted_uip1_used[1]*rate2 + c->uip1_used*(1.0-rate2);
 
           e->sum_props_used_per_time = (double)e->sum_props_used/(double)lifetime;
           e->sum_uip1_used_per_time = (double)e->sum_uip1_used/(double)lifetime;
+          e->props_used = c->props_used;
+          e->uip1_used = c->uip1_used;
         }
         e->last_touched = c->last_touched;
       }
@@ -299,7 +298,16 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       if (GET_OPTION(usemldata)) red.e = &EXTDATA(c);
 
       const int tier = EXTDATA(c).tier;
-      if (tier == -1 || tier == 0) PUSH_STACK (reds[0], red);
+      if (GET_OPTION(usemldata)) {
+        const int lifetime = (int)CONFLICTS-(int)EXTDATA(c).clause_born;
+        if ((tier == -1 || tier == 0) &&
+          lifetime > 10000) {
+          PUSH_STACK (reds[0], red);
+        }
+      } else {
+        PUSH_STACK (reds[0], red);
+      }
+
 //       else if (tier == 1) PUSH_STACK (reds[1], red);
 //       else if (tier == 2) PUSH_STACK (reds[2], red);
 //       else assert(false);

@@ -31,6 +31,8 @@ struct extdata {
 
   // Last round data / last round length
   float last_touched;
+  int props_used;
+  int uip1_used;
 
   //redundant info, but useful to have here as well, for ML
   int cl_id;
