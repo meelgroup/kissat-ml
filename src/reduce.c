@@ -455,7 +455,6 @@ kissat_reduce (kissat * solver)
     UPDATE_CONFLICT_LIMIT (reduce, reductions, SQRT, false);
   }
   REPORT (0, '-');
-  solver->limits.last_reduce.conflicts = CONFLICTS;
   STOP (reduce);
   return solver->inconsistent ? 20 : 0;
 }

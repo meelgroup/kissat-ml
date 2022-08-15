@@ -49,7 +49,7 @@ struct limits
   struct
   {
     uint64_t conflicts;
-  } probe, reduce, rephase, restart, last_reduce;
+  } probe, reduce, rephase, restart;
 };
 
 struct limited

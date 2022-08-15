@@ -56,16 +56,15 @@ struct clause
   unsigned glue:LD_MAX_GLUE;
 
   bool garbage:1;
-  bool keep:1; // when set, it's Tier 1 (i.e. never delete)
+  bool keep:1;
   bool reason:1;
   bool redundant:1;
-  bool shrunken:1; // orig size is not kept. Insead, this is set, and INVALID_LIT is placed at the last point in lits[]
+  bool shrunken:1;
   bool subsume:1;
   bool sweeped:1;
   bool vivify:1;
 
   unsigned used:2;
-  //Extra by Mate
   int extra_data_idx;
   int props_used;
   int uip1_used;

@@ -329,8 +329,6 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
     {
       if (src->garbage)
 	{
-//           printf("Deleting ID (sparse) %d\n", src->cl_id);
-//           clause_print_stats(solver, src);
 	  next = kissat_delete_clause (solver, src);
 	  flushed_garbage_clauses++;
 	  if (last_irredundant == src)
@@ -342,8 +340,6 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 	    }
 	  continue;
 	}
-//       printf("Not deleting (sparse) clause %d, sz: %d\n", src->cl_id, src->size);
-//       clause_print_stats(solver, src);
 
       assert (src->size > 1);
       LOGCLS (src, "SRC");
@@ -363,14 +359,12 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 
       bool satisfied = false;
 
-//       printf("WAAAIT Not deleting (sparse) clause %d, sz: %d\n", dst->cl_id, dst->size);
       for (all_literals_in_clause_sz (lit, src, dst->size))
 	{
 #ifdef CHECKING_OR_PROVING
 	  if (checking_or_proving)
 	    PUSH_STACK (solver->removed, lit);
 #endif
-//           printf("Lit: %d \n", (1 + (lit >> 1)) * ((lit & 1) ? -1 : 1));
 	  if (satisfied)
 	    continue;
 
@@ -379,11 +373,9 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 	  const unsigned level = tmp ? assigned[idx].level : INVALID_LEVEL;
 
 	  if (tmp < 0 && !level)
-            // falsified literal
 	    flushed++;
 	  else if (tmp > 0 && !level)
 	    {
-              //satisfied clause
 	      assert (!satisfied);
 	      assert (!dst->reason);
 	      LOG ("SRC satisfied by %s", LOGLIT (lit));
@@ -684,7 +676,6 @@ dense_sweep_garbage_clauses (kissat * solver)
     {
       if (src->garbage)
 	{
-//           printf("Deleting (dense) ID %d", src->cl_id);
 	  next = kissat_delete_clause (solver, src);
 	  flushed_garbage_clauses++;
 	  continue;
