@@ -118,6 +118,7 @@ kissat_deduce_first_uip_clause (kissat * solver, clause * conflict)
 	  LOGREF (ref, "resolving %s reason", LOGLIT (uip));
 	  clause *reason = kissat_dereference_clause (solver, ref);
           reason->uip1_used++;
+          reason->last_touched = CONFLICTS;
 	  for (all_literals_in_clause (lit, reason))
 	    if (lit != uip &&
 		analyze_literal (solver, all_assigned, frames, lit))

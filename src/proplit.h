@@ -251,7 +251,6 @@ PROPAGATE_LITERAL (kissat * solver,
 	    {
 	      assert (replacement_value < 0);
 	      c->props_used++;
-	      c->last_touched = CONFLICTS;
 	      kissat_fast_assign_reference (solver, values,
 					    assigned, other, ref, c);
 	      ticks++;
