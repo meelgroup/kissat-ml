@@ -377,7 +377,6 @@ int
 kissat_reduce (kissat * solver)
 {
   START (reduce);
-  printf("solver->statistics.reductions: %ld\n", solver->statistics.reductions);
   INC (reductions);
   kissat_phase (solver, "reduce", GET (reductions),
 		"reduce limit %" PRIu64 " hit after %" PRIu64
