@@ -37,8 +37,10 @@ void predict_setup(struct predict* pred)
 {
     if (pred->inited == 0) {
         printf("Initing xgboost...\n");
-        safe_xgboost(XGBoosterCreate(0, 0, &(pred->handle)))
-        safe_xgboost(XGBoosterSetParam(pred->handle, "nthread", "1"))
+        for(int i = 0; i < 3; i++) {
+            safe_xgboost(XGBoosterCreate(0, 0, &(pred->handle[i])))
+            safe_xgboost(XGBoosterSetParam(pred->handle[i], "nthread", "1"))
+        }
         pred->inited = 1;
     }
 }
@@ -48,24 +50,31 @@ void predict_del(struct predict* pred)
     XGBoosterFree(pred->handle);
 }
 
-void predict_load_models(struct predict* pred, const char* short_fname)
+void predict_load_models(struct predict* pred,
+                         const char* short_fname,
+                         const char* medium_fname,
+                         const char* long_fname)
 {
     assert(pred->inited > 0);
     if (pred->inited == 1) {
         printf("Loading model...\n");
-        safe_xgboost(XGBoosterLoadModel(pred->handle, short_fname))
+        safe_xgboost(XGBoosterLoadModel(pred->handle[0], short_fname))
+        safe_xgboost(XGBoosterLoadModel(pred->handle[1], medium_fname))
+        safe_xgboost(XGBoosterLoadModel(pred->handle[2], long_fname))
         pred->inited = 2;
     }
 }
 
-void predict_all(struct predict* pred, float* const data, const uint32_t num)
-{
+void predict_setup2(struct predict* pred, float* const data, const uint32_t num) {
     safe_xgboost(
         XGDMatrixCreateFromMat(data, num, PRED_COLS, -1, &pred->dmat));
+}
 
+void predict_all(struct predict* pred, uint32_t num, int tier)
+{
     bst_ulong out_len;
     safe_xgboost(XGBoosterPredict(
-        pred->handle,
+        pred->handle[tier],
         pred->dmat,
         0,  //0: normal prediction
         0,  //use all trees

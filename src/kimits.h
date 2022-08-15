@@ -114,7 +114,7 @@ double kissat_logn (uint64_t);
 #define NLOGN(COUNT) kissat_nlogpown (COUNT,1)
 #define NLOG2N(COUNT) kissat_nlogpown (COUNT,2)
 #define NLOG3N(COUNT) kissat_nlogpown (COUNT,3)
-
+#define UNIT_FUNC(COUNT) (1)
 #define SQRT(COUNT) kissat_sqrt (COUNT)
 
 #define UPDATE_CONFLICT_LIMIT(NAME,COUNT,SCALE_COUNT_FUNCTION,SCALE_DELTA) \

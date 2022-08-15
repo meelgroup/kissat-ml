@@ -73,7 +73,7 @@ int comp_sum_uip1_per(const void* a, const void* b) {
   return b1->e->sum_uip1_used_per_time > a1->e->sum_uip1_used_per_time;
 }
 
-void sort_ml(kissat* solver, reducibles* reds) {
+void sort_ml(kissat* solver, reducibles* reds, int tier) {
   assert(IS_ML);
   reducible* end = END_STACK(*reds);
 
@@ -105,7 +105,10 @@ void sort_ml(kissat* solver, reducibles* reds) {
   kissat_verbose(solver, "Ordered prop.\n");
 
   predict_setup(&solver->pred);
-  predict_load_models(&solver->pred, "short.json");
+  predict_load_models(&solver->pred,
+                      "short.json",
+                      "medium.json",
+                      "long.json");
 
 //   printf("After ranking and all:\n");
   float* data = malloc(sizeof(float)*PRED_COLS*SIZE_STACK(*reds));
@@ -127,7 +130,9 @@ void sort_ml(kissat* solver, reducibles* reds) {
     *d++ = r->c->glue;
   }
 //   printf("Finished.\n");
-  predict_all(&solver->pred, data, SIZE_STACK(*reds));
+
+  predict_setup2(&solver->pred, data, SIZE_STACK(*reds));
+  predict_all(&solver->pred, SIZE_STACK(*reds), tier);
 
   int at = 0;
   for(reducible* r = BEGIN_STACK(*reds); r != end; r++) {
@@ -157,6 +162,7 @@ void sort_ml(kissat* solver, reducibles* reds) {
       kissat_mark_clause_as_garbage (solver, r->c);
       if (GET_OPTION(verbose)) printf("--> GARBAGE\n");
     } else {
+      assert(r->e->tier == -1);
       if (GET_OPTION(verbose)) printf("--> KEEP\n");
     }
     at++;
@@ -394,9 +400,7 @@ kissat_reduce (kissat * solver)
 	  if (collect_reducibles (solver, &reds, start))
 	    {
               if (GET_OPTION(usemldata)) {
-                //assert(false && "TODO");
-                sort_ml (solver, &reds);
-                //mark_less_useful_clauses_as_garbage (solver, &reds);
+                sort_ml (solver, &reds, 0);
               } else {
                 sort_reducibles (solver, &reds);
                 mark_less_useful_clauses_as_garbage (solver, &reds);
@@ -415,9 +419,9 @@ kissat_reduce (kissat * solver)
   else
     kissat_phase (solver, "reduce", GET (reductions), "nothing to reduce");
   if (GET_OPTION(usemldata)) {
-    solver->statistics.reductionsML = 1;
+    solver->statistics.reductionsML++;;
     solver->options.reduceint = 1e4;
-    UPDATE_CONFLICT_LIMIT (reduce, reductionsML, SQRT, false);
+    UPDATE_CONFLICT_LIMIT (reduce, reductionsML, UNIT_FUNC, false);
   } else {
     UPDATE_CONFLICT_LIMIT (reduce, reductions, SQRT, false);
   }

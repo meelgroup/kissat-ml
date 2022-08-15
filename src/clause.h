@@ -37,7 +37,8 @@ struct extdata {
   struct clause* cl_ref; // needed to re-set after qsort
 
   // ML prediction value
-  float pred_lev[2];
+  float pred_lev[3];
+  int tier;
 };
 typedef struct extdata extdata;
 
@@ -62,6 +63,7 @@ struct clause
   bool vivify:1;
 
   unsigned used:2;
+  //Extra by Mate
   int extra_data_idx;
   int props_used;
   int uip1_used;

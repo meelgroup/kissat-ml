@@ -60,6 +60,7 @@ init_clause (kissat * solver, clause * res,
     d.garbage = false;
     d.clause_born = CONFLICTS;
     d.cl_ref = res;
+    d.tier = -1;
     memset(d.discounted_props_used, 0, sizeof(d.discounted_props_used));
     memset(d.discounted_uip1_used, 0, sizeof(d.discounted_uip1_used));
     d.sum_props_used = 0;
