@@ -3,7 +3,7 @@
 
 #include "xgboost/c_api.h"
 
-#define PRED_COLS 11
+#define PRED_COLS 12
 
 struct predict {
     int inited;

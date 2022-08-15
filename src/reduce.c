@@ -102,12 +102,12 @@ void sort_ml(kissat* solver, reducibles* reds, int tier) {
   for(unsigned i = 0, size = SIZE_STACK(*reds); i < size; i++) {
     PEEK_STACK(*reds, i).e->uip1_ranking_rel = (double)i/(double)size;
   }
-  kissat_verbose(solver, "Ordered prop.\n");
+  kissat_verbose(solver, "Ordered uip1.\n");
 
   predict_setup(&solver->pred);
   predict_load_models(&solver->pred,
-                      "short.json",
-                      "medium.json",
+                      "short_anc.json",
+                      "medium_anc.json",
                       "long.json");
 
 //   printf("After ranking and all:\n");
@@ -128,6 +128,7 @@ void sort_ml(kissat* solver, reducibles* reds, int tier) {
     *d++ = r->e->discounted_uip1_used[0];
     *d++ = r->e->discounted_uip1_used[1];
     *d++ = r->c->glue;
+    *d++ = (int)CONFLICTS-(int)r->c->last_touched;
   }
 //   printf("Finished.\n");
 
@@ -144,7 +145,7 @@ void sort_ml(kissat* solver, reducibles* reds, int tier) {
   qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_pred);
   end = END_STACK(*reds);
 
-  int num_to_del = (int)SIZE_STACK(*reds)-50000;
+  int num_to_del = (int)SIZE_STACK(*reds)-GET_OPTION(mlsize);
   at = 0;
   for(int i = SIZE_STACK(*reds)-1; i >= 0 && num_to_del > 0; i--, num_to_del--) {
     reducible* r = &PEEK_STACK(*reds, i);
@@ -295,7 +296,12 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       red.ref = (ward *) c - arena;
       red.c = c;
       if (GET_OPTION(usemldata)) red.e = &EXTDATA(c);
-      PUSH_STACK (*reds, red);
+
+      const int tier = EXTDATA(c).tier;
+      if (tier == -1 || tier == 0) PUSH_STACK (reds[0], red);
+//       else if (tier == 1) PUSH_STACK (reds[1], red);
+//       else if (tier == 2) PUSH_STACK (reds[2], red);
+//       else assert(false);
 
       end:
       // Zero things out
@@ -395,17 +401,20 @@ kissat_reduce (kissat * solver)
 #endif
       if (kissat_flush_and_mark_reason_clauses (solver, start))
 	{
-	  reducibles reds;
-	  INIT_STACK (reds);
-	  if (collect_reducibles (solver, &reds, start))
+	  reducibles reds[3];
+          for(int i = 0; i < 3; i++) INIT_STACK (reds[i]);
+	  if (collect_reducibles (solver, reds, start))
 	    {
               if (GET_OPTION(usemldata)) {
-                sort_ml (solver, &reds, 0);
+                //for(int i = 0; i < 3; i++) sort_ml (solver, &reds[i], i);
+                // use MEDIUM_ANC by default
+                // use SHORT_ANC by default?
+                sort_ml (solver, &reds[0], 0);
               } else {
-                sort_reducibles (solver, &reds);
-                mark_less_useful_clauses_as_garbage (solver, &reds);
+                sort_reducibles (solver, &reds[0]);
+                mark_less_useful_clauses_as_garbage (solver, &reds[0]);
               }
-              RELEASE_STACK (reds);
+              for(int i = 0; i < 3; i++) RELEASE_STACK (reds[i]);
               kissat_sparse_collect (solver, compact, start);
 	    }
 	  else if (compact)
