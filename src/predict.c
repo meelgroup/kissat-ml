@@ -47,7 +47,9 @@ void predict_setup(struct predict* pred)
 
 void predict_del(struct predict* pred)
 {
-    XGBoosterFree(pred->handle);
+    for(int i = 0; i < 3; i++) {
+        XGBoosterFree(pred->handle[i]);
+    }
 }
 
 void predict_load_models(struct predict* pred,

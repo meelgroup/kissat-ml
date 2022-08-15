@@ -141,6 +141,7 @@ void sort_ml(kissat* solver, reducibles* reds, int tier) {
     at++;
   }
   free(data);
+  predict_finish(&solver->pred);
 
   qsort(BEGIN_STACK(*reds), SIZE_STACK(*reds), sizeof(reducible), comp_pred);
   end = END_STACK(*reds);

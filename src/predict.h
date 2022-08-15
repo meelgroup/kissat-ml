@@ -12,6 +12,7 @@ struct predict {
     const float *out_result_short;
 };
 
+void predict_del(struct predict* pred);
 void predict_setup(struct predict* pred);
 void predict_setup2(struct predict* pred, float* const data, const uint32_t num);
 void predict_load_models(struct predict* pred,

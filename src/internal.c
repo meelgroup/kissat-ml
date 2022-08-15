@@ -148,6 +148,7 @@ kissat_release (kissat * solver)
   RELEASE_STACK (solver->profiles.stack);
 #endif
   RELEASE_STACK(solver->extra_data);
+  predict_del(&solver->pred);
 
 #ifndef NDEBUG
   kissat_release_checker (solver);
