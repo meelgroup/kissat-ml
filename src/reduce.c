@@ -121,14 +121,28 @@ void sort_ml(kissat* solver, reducibles* reds, int tier) {
     *d++ = r->e->sum_props_used_per_time_rank_rel;
     *d++ = r->e->uip1_ranking_rel;
     *d++ = r->e->props_ranking_rel;
-    *d++ = r->e->props_used;
-    *d++ = r->e->uip1_used;
+    *d++ = (float)r->e->props_used;
+    *d++ = (float)r->e->uip1_used;
     *d++ = r->e->discounted_props_used[0];
     *d++ = r->e->discounted_props_used[1];
     *d++ = r->e->discounted_uip1_used[0];
     *d++ = r->e->discounted_uip1_used[1];
-    *d++ = r->c->glue;
-    *d++ = (int)CONFLICTS-(int)r->c->last_touched;
+    *d++ = (float)r->c->glue;
+    *d++ = (float)( (int)CONFLICTS-(int)r->c->last_touched);
+
+//     kissat_verbose(solver, "vals:");
+//     kissat_verbose(solver, "r->e->sum_uip1_used_per_time_rank_rel;   %f", r->e->sum_uip1_used_per_time_rank_rel);
+//     kissat_verbose(solver, "r->e->sum_props_used_per_time_rank_rel;  %f", r->e->sum_props_used_per_time_rank_rel);
+//     kissat_verbose(solver, "r->e->uip1_ranking_rel;                  %f", r->e->uip1_ranking_rel);
+//     kissat_verbose(solver, "r->e->props_ranking_rel;                 %f", r->e->props_ranking_rel);
+//     kissat_verbose(solver, "r->e->props_used;                        %f", (float)r->e->props_used);
+//     kissat_verbose(solver, "r->e->uip1_used;                         %f", (float)r->e->uip1_used);
+//     kissat_verbose(solver, "r->e->discounted_props_used[0];          %f", r->e->discounted_props_used[0]);
+//     kissat_verbose(solver, "r->e->discounted_props_used[1];          %f", r->e->discounted_props_used[1]);
+//     kissat_verbose(solver, "r->e->discounted_uip1_used[0];           %f", r->e->discounted_uip1_used[0]);
+//     kissat_verbose(solver, "r->e->discounted_uip1_used[1];           %f", r->e->discounted_uip1_used[1]);
+//     kissat_verbose(solver, "r->c->glue;                              %f", (float)r->c->glue);
+//     kissat_verbose(solver, "(int)CONFLICTS-(int)r->c->last_touched;  %f", (float)((int)CONFLICTS-(int)r->c->last_touched));
   }
 //   printf("Finished.\n");
 
