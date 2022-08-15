@@ -300,17 +300,15 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       const int tier = EXTDATA(c).tier;
       if (GET_OPTION(usemldata)) {
         const int lifetime = (int)CONFLICTS-(int)EXTDATA(c).clause_born;
-        if ((tier == -1 || tier == 0) &&
-          lifetime > 10000) {
-          PUSH_STACK (reds[0], red);
+        if (lifetime > 10000) {
+        if ((tier == -1 || tier == 0)) PUSH_STACK (reds[0], red);
+//      else if (tier == 1) PUSH_STACK (reds[1], red);
+//      else if (tier == 2) PUSH_STACK (reds[2], red);
+//      else assert(false);
         }
       } else {
         PUSH_STACK (reds[0], red);
       }
-
-//       else if (tier == 1) PUSH_STACK (reds[1], red);
-//       else if (tier == 2) PUSH_STACK (reds[2], red);
-//       else assert(false);
 
       end:
       // Zero things out
