@@ -124,6 +124,7 @@ COUNTER( subsumption_checks, 2, NO_SECONDARY, 0, 0) \
 STATISTIC( substitute_units, 1, PCNT_VARIABLES, "%", "variables") \
 STATISTIC( substitutions, 2, CONF_INT, "", "interval") \
 COUNTER( subsumed, 1, PCNT_SUBSUMPTION_CHECK, "%", "checks") \
+COUNTER( sym_breaks, 1, CONF_INT, "", "interval") \
 COUNTER( sweep, 2, CONF_INT, "", "interval") \
 COUNTER( sweep_completed, 2, SWEEPS_PER_COMPLETED, "", "sweeps") \
 COUNTER( sweep_equivalences, 2, PCNT_VARIABLES, "%", "variables") \
