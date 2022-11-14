@@ -81,8 +81,6 @@ OPTION( substituteeffort, 10, 1, 1e3, "effort in per mille") \
 OPTION( substituterounds, 2, 1, 100, "maximum substitution rounds") \
 OPTION( subsumeclslim, 1e3, 1, INT_MAX, "subsumption clause size limit") \
 OPTION( subsumeocclim, 1e3, 0, INT_MAX, "subsumption occurrence limit") \
-OPTION( sym_break, 1, 0, 1, "symmetry breaking") \
-OPTION( sym_breakint, 1e3, 2, 1e5, "base symmetry breaking interval") \
 OPTION( sweep, 1, 0, 1, "enable SAT sweeping") \
 OPTION( sweepclauses, 1024, 0, INT_MAX, "environment clauses") \
 OPTION( sweepdepth, 1, 0, INT_MAX, "environment depth") \
@@ -92,6 +90,8 @@ OPTION( sweepmaxclauses, 4096, 2, INT_MAX, "maximum environment clauses") \
 OPTION( sweepmaxdepth, 2, 1, INT_MAX, "maximum environment depth") \
 OPTION( sweepmaxvars, 128, 2, INT_MAX, "maximum environment variables") \
 OPTION( sweepvars, 128, 0, INT_MAX, "environment variables") \
+OPTION( sym_break, 1, 0, 1, "symmetry breaking") \
+OPTION( sym_breakint, 1e3, 2, 1e5, "base symmetry breaking interval") \
 OPTION( target, TARGET_DEFAULT, 0, 2, "target phases (1=stable,2=focused)") \
 OPTION( tier1, 2, 1, 100, "learned clause tier one glue limit") \
 OPTION( tier2, 6, 1,1e3, "learned clause tier two glue limit") \

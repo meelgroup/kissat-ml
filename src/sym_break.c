@@ -29,14 +29,17 @@ kissat_sym_breaking (kissat * solver)
 {
   if (!GET_OPTION(sym_break)) {
     return false;
+  }
   statistics *statistics = &solver->statistics;
+  //printf("statistics->clauses_irredundant: %d\n", statistics->clauses_irredundant);
   if (!statistics->clauses_irredundant)
     return false;
 
   limits *limits = &solver->limits;
-  if (limits->sym_break.conflicts > statistics->conflicts)
+  //printf("limits->sym_break.conflicts: %lu\n", limits->sym_break.conflicts);
+  //printf("statistics->conflicts: %lu\n", statistics->conflicts);
+  if (limits->sym_break.conflicts <= statistics->conflicts)
     return true;
-  }
   return false;
 }
 
@@ -68,6 +71,10 @@ void do_breakid (struct kissat * solver)
   ward *const arena = BEGIN_STACK (solver->arena);
   BreakID* bid = breakid_new();
   breakid_set_verbosity(bid, 3);
+  breakid_set_useMatrixDetection(bid, true);
+  breakid_set_symBreakingFormLength(bid, 50);
+  breakid_set_steps_lim(bid,100000);
+  breakid_start_dynamic_cnf(bid, VARS);
 
   // Long irredundant clauses
   for (all_clauses (c))
@@ -96,13 +103,16 @@ void do_breakid (struct kissat * solver)
       const reference ref = (ward *) c - arena;
       assert (ref == kissat_reference_clause (solver, c));
       assert (c == kissat_dereference_clause (solver, ref));
-      breakid_start_dynamic_cnf(bid, VARS);
+      /* printf("Cl vars: "); */
+      /* for(int i = 0; i < c->size; i++) printf("%d ", IDX(c->lits[i])); */
+      /* printf("\n"); */
       breakid_add_clause(bid, (int*)c->lits, c->size);
     }
 
   // binary clauses
   int lits[2];
-  for(int lit = 1; lit <= VARS; lit++) {
+  for(int lit = 0; lit < 2*VARS; lit++) {
+
     watches *watches = all_watches + lit;
     lits[0] = lit;
 
@@ -116,10 +126,8 @@ void do_breakid (struct kissat * solver)
 
     const size_t size_watches = SIZE_WATCHES (*watches);
     while (p != end_watches) {
-      p++;
       const watch head = *p++;
       const unsigned blocking = head.blocking.lit;
-      assert (VALID_INTERNAL_LITERAL (blocking));
       //const value blocking_value = values[blocking];
       const bool binary = head.type.binary;
 
@@ -127,13 +135,16 @@ void do_breakid (struct kissat * solver)
         p++;
         continue;
       } else {
+        assert (VALID_INTERNAL_LITERAL (blocking));
         lits[1] = blocking;
+        /* printf("Bin vars: %d %d\n", IDX(lits[0]), IDX(lits[1])); */
         breakid_add_clause(bid, lits, 2);
       }
     }
   }
   breakid_end_dynamic_cnf(bid);
-  //int64_t remain = breakid.get_steps_remain();
+  printf("Steps remain: %ld\n",breakid_get_steps_remain(bid));
+  printf("Num generators: %d\n", breakid_get_num_generators(bid));
   breakid_print_generators(bid);
 
   breakid_del(bid);

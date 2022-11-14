@@ -15,6 +15,7 @@
 #include "terminate.h"
 #include "trail.h"
 #include "walk.h"
+#include "sym_break.h"
 
 #include <inttypes.h>
 
@@ -187,6 +188,8 @@ kissat_search (kissat * solver)
 	res = kissat_eliminate (solver);
       else if (kissat_probing (solver))
 	res = kissat_probe (solver);
+      else if (kissat_sym_breaking (solver))
+	res = kissat_sym_break (solver);
       else if (decision_limit_hit (solver))
 	break;
       else

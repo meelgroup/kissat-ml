@@ -37,7 +37,7 @@ unsat=no
 passtocompiler=""
 passtolinker=""
 
-goals="libkissat.a kissat"
+goals="libkissat.so kissat"
 
 usage () {
 cat <<EOF
