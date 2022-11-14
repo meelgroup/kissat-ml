@@ -73,7 +73,7 @@ void do_breakid (struct kissat * solver)
   breakid_set_verbosity(bid, 3);
   breakid_set_useMatrixDetection(bid, true);
   breakid_set_symBreakingFormLength(bid, 50);
-  breakid_set_steps_lim(bid,100000);
+  breakid_set_steps_lim(bid,100LL*1000LL);
   breakid_start_dynamic_cnf(bid, VARS);
 
   // Long irredundant clauses

@@ -123,6 +123,9 @@ kissat_init_limits (kissat * solver)
 
   limits *limits = &solver->limits;
 
+  if (GET_OPTION (sym_break))
+    INIT_CONFLICT_LIMIT (sym_break, false);
+
   if (GET_OPTION (reduce))
     INIT_CONFLICT_LIMIT (reduce, false);
 

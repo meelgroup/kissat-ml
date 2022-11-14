@@ -91,6 +91,7 @@ OPTION( sweepmaxdepth, 2, 1, INT_MAX, "maximum environment depth") \
 OPTION( sweepmaxvars, 128, 2, INT_MAX, "maximum environment variables") \
 OPTION( sweepvars, 128, 0, INT_MAX, "environment variables") \
 OPTION( sym_break, 1, 0, 1, "symmetry breaking") \
+OPTION( sym_breakinit, 1e3, 2, 1e5, "initial symmetry breaking start") \
 OPTION( sym_breakint, 1e3, 2, 1e5, "base symmetry breaking interval") \
 OPTION( target, TARGET_DEFAULT, 0, 2, "target phases (1=stable,2=focused)") \
 OPTION( tier1, 2, 1, 100, "learned clause tier one glue limit") \
