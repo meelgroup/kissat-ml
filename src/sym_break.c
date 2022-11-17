@@ -9,6 +9,7 @@
 #include "propdense.h"
 #include "print.h"
 #include "report.h"
+#include "resize.h"
 #include "resolve.h"
 #include "terminate.h"
 #include "trail.h"
@@ -59,6 +60,33 @@ void sym_break (struct kissat * solver)
   STOP_SIMPLIFIER_AND_RESUME_SEARCH (sym_break);
 }
 
+static void
+break_symms_in_kissat(struct kissat * solver, BreakID* bid)
+{
+  kissat_message(solver, "Breaking cls: %d", breakid_get_num_break_cls(bid));
+  kissat_message(solver, "Adding %d variables for symmetry breaking", breakid_get_num_aux_vars(bid));
+  kissat_enlarge_variables(solver, VARS+breakid_get_num_aux_vars(bid)+1);
+
+  int cls = 0;
+  unsigned* brk = breakid_get_brk_cls(bid, &cls);
+  while(cls > 0) {
+   cls--;
+   assert (EMPTY_STACK (solver->clause));
+   printf("cl: \n");
+   while(*brk != UINT_MAX) {
+     //todo put the literals on the solver->clause stack
+     printf("%d\n", IDX(*brk));
+     PUSH_STACK(solver->clause, *brk);
+     brk++;
+   }
+   printf("\n");
+   brk++;
+   kissat_message(solver, "adding sym breaking clause");
+   kissat_new_irredundant_clause(solver);
+ }
+ CLEAR_STACK(solver->clause);
+}
+
 static
 void do_breakid (struct kissat * solver)
 {
@@ -70,10 +98,10 @@ void do_breakid (struct kissat * solver)
   watches *all_watches = solver->watches;
   ward *const arena = BEGIN_STACK (solver->arena);
   BreakID* bid = breakid_new();
-  breakid_set_verbosity(bid, 3);
+  breakid_set_verbosity(bid, kissat_verbosity(solver));
   breakid_set_useMatrixDetection(bid, true);
   breakid_set_symBreakingFormLength(bid, 50);
-  breakid_set_steps_lim(bid,100LL*1000LL);
+  breakid_set_steps_lim(bid,1000LL*1000LL);
   breakid_start_dynamic_cnf(bid, VARS);
 
   // Long irredundant clauses
@@ -137,16 +165,23 @@ void do_breakid (struct kissat * solver)
       } else {
         assert (VALID_INTERNAL_LITERAL (blocking));
         lits[1] = blocking;
-        /* printf("Bin vars: %d %d\n", IDX(lits[0]), IDX(lits[1])); */
-        breakid_add_clause(bid, lits, 2);
+        if (lits[0] < lits[1]) {  //only do each binary once
+          /* printf("Bin vars: %d %d\n", IDX(lits[0]), IDX(lits[1])); */
+          breakid_add_clause(bid, lits, 2);
+        }
       }
     }
   }
   breakid_end_dynamic_cnf(bid);
-  printf("Steps remain: %ld\n",breakid_get_steps_remain(bid));
-  printf("Num generators: %d\n", breakid_get_num_generators(bid));
-  breakid_print_generators(bid);
+  kissat_message(solver, "Steps remain: %ld\n",breakid_get_steps_remain(bid));
+  kissat_message(solver, "Num generators: %d\n", breakid_get_num_generators(bid));
+  if (kissat_verbosity (solver) >= 2) breakid_print_generators(bid);
+  breakid_detect_subgroups(bid);
+  if (kissat_verbosity (solver) >= 2) breakid_print_subgroups(bid);
+  breakid_break_symm(bid);
+  if (breakid_get_num_break_cls(bid) != 0) break_symms_in_kissat(solver, bid);
 
+  // Finish up
   breakid_del(bid);
 }
 
